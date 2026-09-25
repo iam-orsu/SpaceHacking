@@ -22,8 +22,10 @@ import os
 import secrets
 import struct
 import time
+from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 
+import aiohttp
 import websockets
 from aiohttp import web
 
@@ -42,6 +44,11 @@ GS1_PORT  = int(os.environ.get("GS1_PORT", 4820))
 GS1_TOKEN = os.environ.get("GS1_TOKEN", "gs_alpha_2024")
 GS2_HOST  = os.environ.get("GS2_HOST", "192.168.61.21")
 GS2_PORT  = int(os.environ.get("GS2_PORT", 4820))
+
+NASA_API_KEY = os.environ.get("NASA_API_KEY", "")
+NASA_API_URL = os.environ.get("NASA_API_URL", "https://api.nasa.gov/planetary/earth/imagery")
+IMAGERY_DIR  = os.path.join(os.path.dirname(__file__), "imagery")
+os.makedirs(IMAGERY_DIR, exist_ok=True)
 
 APID_TO_SAT = {0x200: "SpaceVE-1A", 0x201: "SpaceVE-1B", 0x202: "SpaceVE-1C"}
 SAT_TO_APID = {v: k for k, v in APID_TO_SAT.items()}
@@ -68,6 +75,12 @@ sessions: dict   = {}
 ws_tokens: dict  = {}  # token -> {username, role, clearance, ts}
 _cmd_seq: int    = 0
 _start_ts        = time.time()
+
+satellite_imaging_state: dict = {
+    "SpaceVE-1A": {"target_lat": 33.7,  "target_lon": 73.0,  "resolution_m": 30, "imaging_mode": "MULTISPECTRAL", "status": "IDLE", "last_imagery_id": None, "last_capture_ts": None},
+    "SpaceVE-1B": {"target_lat": 51.2,  "target_lon": 9.8,   "resolution_m": 30, "imaging_mode": "MULTISPECTRAL", "status": "IDLE", "last_imagery_id": None, "last_capture_ts": None},
+    "SpaceVE-1C": {"target_lat": -35.1, "target_lon": 147.3, "resolution_m": 30, "imaging_mode": "MULTISPECTRAL", "status": "IDLE", "last_imagery_id": None, "last_capture_ts": None},
+}
 
 ROLE_PERMS = {
     "TELEMETRY_OPS": {"read_tlm", "read_history"},
@@ -123,6 +136,38 @@ async def relay_to_gs(satellite_id: str, func_name: str) -> tuple:
         except Exception as e:
             log.warning("GS %s unreachable: %s", gs_name, e)
     return False, "All ground stations unreachable"
+
+
+async def fetch_nasa_imagery(lat: float, lon: float, resolution: int) -> dict:
+    """Fetch real Earth imagery from NASA Landsat API. No auth check — intentional (MC-MOC-5)."""
+    if not NASA_API_KEY:
+        return {"success": False, "error": "NASA_API_KEY not configured. Add to lab/.env and rebuild."}
+    params = {"lon": lon, "lat": lat, "dim": 0.1, "api_key": NASA_API_KEY}
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(NASA_API_URL, params=params,
+                                   timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                if resp.status == 200:
+                    image_data = await resp.read()
+                    imagery_id = f"IMG_{datetime.now().strftime('%Y%m%d_%H%M%S')}_LAT{lat:.1f}_LON{lon:.1f}"
+                    filepath   = os.path.join(IMAGERY_DIR, f"{imagery_id}.png")
+                    with open(filepath, "wb") as f:
+                        f.write(image_data)
+                    log.info("NASA IMAGERY: %s (lat=%.4f lon=%.4f)", imagery_id, lat, lon)
+                    return {
+                        "success":     True,
+                        "imagery_id":  imagery_id,
+                        "imagery_url": f"/imagery/{imagery_id}.png",
+                        "lat": lat, "lon": lon, "resolution": resolution,
+                        "captured_ts": datetime.now().isoformat(),
+                    }
+                else:
+                    body = await resp.text()
+                    return {"success": False, "error": f"NASA API {resp.status}: {body[:200]}"}
+    except asyncio.TimeoutError:
+        return {"success": False, "error": "NASA API timeout — satellite out of contact window?"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 async def broadcast(msg: dict):
@@ -252,6 +297,18 @@ async def ws_handler(websocket):
                 cmds = await loop.run_in_executor(None, telemetry_store.get_recent_commands)
                 await websocket.send(json.dumps({"type": "recent_commands", "commands": cmds}, default=str))
 
+            elif mtype == "redirect_imaging":
+                # Red team attack: redirect satellite imaging target to unauthorized coordinates
+                sat_id  = msg.get("satellite_id", "SpaceVE-1A")
+                new_lat = float(msg.get("new_lat", 0))
+                new_lon = float(msg.get("new_lon", 0))
+                if sat_id in satellite_imaging_state:
+                    satellite_imaging_state[sat_id]["target_lat"] = new_lat
+                    satellite_imaging_state[sat_id]["target_lon"] = new_lon
+                    satellite_imaging_state[sat_id]["status"]     = "REDIRECTED"
+                    log.warning("IMAGING REDIRECT (WS): %s -> lat=%.4f lon=%.4f", sat_id, new_lat, new_lon)
+                    await broadcast({"type": "imaging_redirected", "satellite_id": sat_id, "new_lat": new_lat, "new_lon": new_lon})
+
     except websockets.exceptions.ConnectionClosed:
         pass
     finally:
@@ -286,7 +343,9 @@ async def broadcaster(queue):
             await broadcast({"type": "mission_data", "satellite_id": sat_id, **parsed})
         else:
             sat_state[sat_id] = parsed
-            await broadcast({"type": "tlm_update", **parsed})
+            tlm_out = dict(parsed)
+            tlm_out["imaging"] = dict(satellite_imaging_state.get(sat_id, {}))
+            await broadcast({"type": "tlm_update", **tlm_out})
             now = time.time()
             if now - db_last.get(sat_id, 0) >= 5:
                 db_last[sat_id] = now
@@ -343,6 +402,55 @@ async def http_login(request):
     )
 
 
+async def http_capture_imagery(request):
+    """POST /api/imagery/capture — fetch real NASA Earth imagery for a satellite's target."""
+    try:
+        data = await request.json()
+    except Exception:
+        return web.Response(status=400, content_type="application/json", text='{"error":"bad request"}')
+    sat_id = data.get("satellite_id", "SpaceVE-1A")
+    lat    = float(data.get("target_lat", 0))
+    lon    = float(data.get("target_lon", 0))
+    res    = int(data.get("resolution_m", 30))
+    img_state = satellite_imaging_state.get(sat_id, {})
+    img_state["status"] = "IMAGING"
+    result = await fetch_nasa_imagery(lat, lon, res)
+    if result.get("success"):
+        img_state["status"]         = "CAPTURED"
+        img_state["last_imagery_id"]  = result["imagery_id"]
+        img_state["last_capture_ts"] = result["captured_ts"]
+    else:
+        img_state["status"] = "FAILED"
+    return web.Response(
+        content_type="application/json",
+        headers={"Access-Control-Allow-Origin": "*"},
+        text=json.dumps(result),
+    )
+
+
+async def http_redirect_imaging(request):
+    """POST /api/imagery/redirect — redirect satellite imaging target (red team attack vector)."""
+    try:
+        data = await request.json()
+    except Exception:
+        return web.Response(status=400, content_type="application/json", text='{"error":"bad request"}')
+    sat_id  = data.get("satellite_id", "SpaceVE-1A")
+    new_lat = float(data.get("new_lat", 0))
+    new_lon = float(data.get("new_lon", 0))
+    if sat_id not in satellite_imaging_state:
+        return web.Response(status=404, content_type="application/json", text='{"error":"satellite not found"}')
+    satellite_imaging_state[sat_id]["target_lat"] = new_lat
+    satellite_imaging_state[sat_id]["target_lon"] = new_lon
+    satellite_imaging_state[sat_id]["status"]     = "REDIRECTED"
+    log.warning("IMAGING REDIRECT (HTTP): %s -> lat=%.4f lon=%.4f", sat_id, new_lat, new_lon)
+    await broadcast({"type": "imaging_redirected", "satellite_id": sat_id, "new_lat": new_lat, "new_lon": new_lon})
+    return web.Response(
+        content_type="application/json",
+        headers={"Access-Control-Allow-Origin": "*"},
+        text=json.dumps({"status": "redirected", "satellite_id": sat_id, "new_lat": new_lat, "new_lon": new_lon}),
+    )
+
+
 async def http_index(request):
     static = os.path.join(os.path.dirname(__file__), "static", "index.html")
     return web.FileResponse(static)
@@ -350,10 +458,13 @@ async def http_index(request):
 
 async def start_http(port):
     app = web.Application()
-    app.router.add_get("/",            http_index)
-    app.router.add_get("/index.html",  http_index)
-    app.router.add_get("/status",      http_status)
-    app.router.add_post("/api/login",  http_login)
+    app.router.add_get("/",                      http_index)
+    app.router.add_get("/index.html",            http_index)
+    app.router.add_get("/status",                http_status)
+    app.router.add_post("/api/login",            http_login)
+    app.router.add_post("/api/imagery/capture",  http_capture_imagery)
+    app.router.add_post("/api/imagery/redirect", http_redirect_imaging)
+    app.router.add_static("/imagery",            IMAGERY_DIR)
     runner = web.AppRunner(app)
     await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", port).start()

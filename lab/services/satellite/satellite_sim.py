@@ -125,6 +125,13 @@ state = {
         "window_end": "2024-06-15T02:42:00Z",
         "payload_mode": "IMAGING_HIGH_RES",
     },
+    # Imaging payload state
+    "imaging_target_lat":  33.7  if SATELLITE_ID == "A" else (51.2  if SATELLITE_ID == "B" else -35.1),
+    "imaging_target_lon":  73.0  if SATELLITE_ID == "A" else (9.8   if SATELLITE_ID == "B" else 147.3),
+    "imaging_resolution_m": 30,
+    "imaging_mode":        "MULTISPECTRAL",
+    "imaging_status":      "IDLE",
+    "imaging_passes_completed": 0,
     # Health
     "uptime_s": 0,
     "cpu_load_pct": 23.5,
