@@ -2,17 +2,54 @@
 
 ## Deploy
 
-Get a free NASA API key: https://api.nasa.gov/
+**Requirements:** Docker, Docker Compose, Python 3.10+, Linux or macOS (Ubuntu VM works perfectly).
+
+1. Clone the repo and enter the lab directory:
 
 ```bash
 cd lab
-echo "NASA_API_KEY=your_key_here" > .env
-docker compose up --build -d
 ```
 
-Open: http://localhost:8080
+2. Copy the environment file:
 
-Read docs: `lab/docs/adversary_scenario.md`
+```bash
+cp .env.example .env
+```
+
+3. (Optional) Open `.env` and add a free NASA API key for real Landsat imagery in Objective 5. Get one at https://api.nasa.gov/. Leave it as-is to use simulated imagery.
+
+4. Start the lab:
+
+```bash
+./deploy.sh start
+```
+
+5. Verify all services are healthy:
+
+```bash
+./verify.sh
+```
+
+6. Open the dashboard:
+
+```
+http://localhost:8080
+```
+
+7. Read the adversary briefing and start attacking:
+
+```bash
+cat lab/docs/adversary_scenario.md
+```
+
+**Lab commands:**
+
+```bash
+./deploy.sh start     # Build and start all containers
+./deploy.sh stop      # Stop and remove containers
+./deploy.sh restart   # Restart running containers
+./verify.sh           # Health check — run any time
+```
 
 ---
 
@@ -35,7 +72,9 @@ Control all three and you have ended OrsuSpace's Earth observation mission.
 
 ```bash
 cd lab
-docker compose up --build -d
+cp .env.example .env
+./deploy.sh start
+./verify.sh
 ```
 
 Open the target: http://localhost:8080
