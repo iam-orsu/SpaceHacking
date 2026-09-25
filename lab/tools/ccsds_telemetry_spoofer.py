@@ -1,5 +1,5 @@
 """
-ccsds_telemetry_spoofer.py — Inject fake CCSDS TM packets into MOC UDP receiver
+ccsds_telemetry_spoofer.py - Inject fake CCSDS TM packets into MOC UDP receiver
 
 Usage:
     python3 ccsds_telemetry_spoofer.py --sat SpaceVE-1A --param battery_soc --value 5
@@ -27,7 +27,7 @@ CCSDS TM primary header (6 bytes, big-endian):
     Bits 32-47: Packet Data Length (payload_len - 1)
 
 TM payload format (36 bytes, struct ">8sHHHhHHhhHhhBBH"):
-    cds_timestamp   8 bytes (CCSDS CDS format — set to 8 zero bytes when spoofing)
+    cds_timestamp   8 bytes (CCSDS CDS format - set to 8 zero bytes when spoofing)
     mode            uint16   (0=NOMINAL,1=SAFE,2=CAMERA_ON,3=DOWNLINK_ACTIVE,4=REBOOT)
     bat_soc_pm      uint16   (permil, 0-1000)
     bat_mv          uint16   (millivolts)
@@ -64,7 +64,7 @@ MODE_CODES = {
 }
 
 TLM_FMT  = ">8sHHHhHHhhHhhBBH"
-TLM_SIZE = struct.calcsize(TLM_FMT)  # 36 bytes — matches satellite TLM_FMT
+TLM_SIZE = struct.calcsize(TLM_FMT)  # 36 bytes - matches satellite TLM_FMT
 
 DEFAULTS = {
     "mission_time_s": 3600,
@@ -193,7 +193,7 @@ def main():
     sock.close()
     print(f"\n[done] Sent {sent}/{args.count} packets to {args.host}:{args.port}")
     if sent:
-        print("       Check MOC dashboard — spoofed values should appear within 1-2 seconds")
+        print("       Check MOC dashboard - spoofed values should appear within 1-2 seconds")
 
 
 if __name__ == "__main__":

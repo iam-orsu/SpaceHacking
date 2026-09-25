@@ -81,7 +81,7 @@ def demo_channel_corruption(frame_data: bytes, corrupt_count: int):
 def demo_attacker_mitm(frame_data: bytes, modified_data: bytes):
     codec = make_rs_codec()
     print(f"\n{'='*60}")
-    print("  SCENARIO 2: Attacker MITM — modify data and re-encode parity")
+    print("  SCENARIO 2: Attacker MITM - modify data and re-encode parity")
     print(f"{'='*60}")
     print(f"  Original frame  (first 16): {frame_data[:16].hex()}")
     print(f"  Modified frame  (first 16): {modified_data[:16].hex()}")

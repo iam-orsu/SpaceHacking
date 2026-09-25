@@ -10,7 +10,7 @@ Demonstrates 2 command injection attack vectors against SpaceVE-1:
             or via a container with cmd network access.
 
   Vector 2: Ground station TCP relay via GS-BETA (MAINTENANCE_MODE, no auth)
-            Requires: docker compose up — GS-BETA exposed on localhost:4820.
+            Requires: docker compose up - GS-BETA exposed on localhost:4820.
 
 Usage:
   python3 command_injector.py --attack gs_relay
@@ -108,7 +108,7 @@ def attack_udp(sat: str = "SpaceVE-1A", cmd: str = "DOWNLINK_ENABLE") -> bool:
 def attack_gs_relay(sat: str = "SpaceVE-1A", cmd: str = "DOWNLINK_ENABLE") -> bool:
     """
     Vector 2: GS-BETA text protocol relay.
-    GS-BETA runs in MAINTENANCE_MODE — no auth required (MC-GS-3).
+    GS-BETA runs in MAINTENANCE_MODE - no auth required (MC-GS-3).
     Exposed on localhost:4820.
     """
     print(f"  [GS]  Connecting to GS-BETA at {GS_BETA_HOST}:{GS_BETA_PORT}")

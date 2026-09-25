@@ -1,5 +1,5 @@
 #!/bin/bash
-# reset_lab.sh — SpaceVE-1 Lab Reset
+# reset_lab.sh - SpaceVE-1 Lab Reset
 #
 # Tears down all containers, removes volumes, and optionally removes
 # built images. Use this to start the lab from a clean state.
@@ -36,7 +36,7 @@ done
 echo ""
 echo "  SpaceVE-1 Lab Reset"
 if [ "$HARD" -eq 1 ]; then
-    echo "  Mode: HARD (removes images — next start will rebuild)"
+    echo "  Mode: HARD (removes images - next start will rebuild)"
 else
     echo "  Mode: SOFT (removes containers and volumes only)"
 fi

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-signal_sniffer.py — SpaceVE-1 Network Traffic Sniffer
+signal_sniffer.py - SpaceVE-1 Network Traffic Sniffer
 SpaceVE-1 Lab Attack Tool
 
 Passively captures all lab traffic at the network level and decodes:
-  - CCSDS command packets (UDP 1234) — binary PUS-C TC[128,1] format
-  - Satellite telemetry (UDP 5000) — binary CCSDS TM, 36-byte payload
-  - Ground station traffic (TCP 4820) — plaintext operator commands
+  - CCSDS command packets (UDP 1234) - binary PUS-C TC[128,1] format
+  - Satellite telemetry (UDP 5000) - binary CCSDS TM, 36-byte payload
+  - Ground station traffic (TCP 4820) - plaintext operator commands
   - MOC web traffic (TCP 8080)
 
 Uses scapy for raw packet capture. Must be run as root on the host with

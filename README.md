@@ -48,7 +48,7 @@ cat lab/docs/adversary_scenario.md
 ./deploy.sh start     # Build and start all containers
 ./deploy.sh stop      # Stop and remove containers
 ./deploy.sh restart   # Restart running containers
-./verify.sh           # Health check — run any time
+./verify.sh           # Health check, run any time
 ```
 
 ---
@@ -58,7 +58,7 @@ cat lab/docs/adversary_scenario.md
 You are an APT operator with a foothold inside OrsuSpace Agency's corporate network.
 Initial access is done. You are already in.
 
-Your target: the SpaceVE-1 constellation — three Earth-imaging satellites in low Earth orbit,
+Your target: the SpaceVE-1 constellation - three Earth-imaging satellites in low Earth orbit,
 collecting CONFIDENTIAL intelligence and transmitting it to a Mission Operations Center.
 
 Control one satellite and you control what it photographs, when it transmits, and who gets the data.
@@ -93,7 +93,7 @@ Start the attack: `lab/docs/attack_playbook.md`
 | SpaceVE-1C satellite | 192.168.61.102:1234 UDP | No source IP filter (MC-SAT-1) |
 | Ground Station ALPHA | 192.168.61.20:4820 TCP | Default password: gs_alpha_2024 (MC-GS-1) |
 | Ground Station BETA | localhost:4820 TCP | Maintenance mode: no auth (MC-GS-3) |
-| MOC Dashboard | localhost:8080 HTTP | Entry point — see all satellite state |
+| MOC Dashboard | localhost:8080 HTTP | Entry point, see all satellite state |
 | MOC WebSocket | localhost:8765 WS | TLM readable without auth (MC-MOC-1) |
 | MOC Imaging API | localhost:8080/api | Redirect endpoint: no auth (MC-MOC-5) |
 | Satcom Modem | 192.168.63.51:9000 TCP | Firmware update RCE, no auth (MC-MODEM-1/2/3) |
@@ -109,7 +109,7 @@ Five objectives. They build on each other.
 |---|------|----------|
 | 1 | Read CONFIDENTIAL telemetry without credentials | Mission plan visible in WebSocket stream |
 | 2 | Send a command to a satellite | GS-BETA terminal confirms OK |
-| 3 | Take a satellite offline | SAFING_MODE — satellite card turns red in dashboard |
+| 3 | Take a satellite offline | SAFING_MODE - satellite card turns red in dashboard |
 | 4 | Redirect imaging target | Footprint moves on Cesium globe |
 | 5 | Capture and exfiltrate Earth imagery | NASA Landsat PNG downloaded to disk |
 
@@ -121,7 +121,7 @@ Five objectives. They build on each other.
 # 1. Check MOC status (no auth required)
 python3 lab/tools/telemetry_decoder.py --mode status
 
-# 2. Connect to GS-BETA — maintenance mode, no password
+# 2. Connect to GS-BETA - maintenance mode, no password
 nc localhost 4820
 > LISTCMDS
 > SENDCMD SpaceVE-1A DOWNLINK_ENABLE
@@ -169,7 +169,7 @@ Anyone subscribed to ws://localhost:8765 receives it. No credentials required.
 
 The Incident Response System (IRS) runs with a **10-minute detection lag**.
 
-After you trigger SAFING_MODE on a satellite, IDS rule IR-006 fires — but 600 seconds later.
+After you trigger SAFING_MODE on a satellite, IDS rule IR-006 fires, but 600 seconds later.
 Complete all objectives before the alert appears in the Incidents tab.
 
 The imaging redirect (MC-MOC-5) is not logged at all.
@@ -182,7 +182,7 @@ All tools in `lab/tools/`:
 
 | Tool | Use |
 |------|-----|
-| `signal_sniffer.py` | Subscribe to WebSocket TLM, print all data |
+| `signal_sniffer.py` | Passive traffic sniffer (scapy): CCSDS, GS, and MOC packets |
 | `telemetry_decoder.py` | Decode raw CCSDS frames |
 | `ccsds_packet_forge.py` | Build and send CCSDS telecommand packets |
 | `ccsds_fuzzer.py` | Fuzz satellite CMD ports with malformed packets |
@@ -201,7 +201,7 @@ spacelab-cmd   192.168.61.0/24   Command uplink
 spacelab-tlm   192.168.62.0/24   Telemetry downlink
 spacelab-admin 192.168.63.0/24   Management
 
-MOC bridges all 3 networks (MC-MOC-3) — pivot point once you have MOC access.
+MOC bridges all 3 networks (MC-MOC-3). Pivot point once you have MOC access.
 ```
 
 ---

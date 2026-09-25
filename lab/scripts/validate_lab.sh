@@ -1,5 +1,5 @@
 #!/bin/bash
-# validate_lab.sh — SpaceVE-1 Lab Health Check
+# validate_lab.sh - SpaceVE-1 Lab Health Check
 #
 # Confirms all Phase 2 services are running and confirms each
 # intentional misconfiguration is exploitable.
@@ -31,7 +31,7 @@ for svc in spaceve1-moc spaceve1-sat-a spaceve1-sat-b spaceve1-sat-c \
 done
 
 # ---------------------------------------------------------------- MOC HTTP
-section "MOC HTTP — port 8080"
+section "MOC HTTP - port 8080"
 status=$(curl -sf -o /dev/null -w "%{http_code}" "$MOC_HTTP/" 2>/dev/null || echo "000")
 if [ "$status" = "200" ]; then
     ok "GET / -> 200"
@@ -50,7 +50,7 @@ else
 fi
 
 # ---------------------------------------------------------------- MOC WS (MC-MOC-1)
-section "MOC WebSocket — MC-MOC-1 (no auth)"
+section "MOC WebSocket - MC-MOC-1 (no auth)"
 # Use curl as a minimal WebSocket upgrade check
 ws_check=$(curl -sf --max-time 3 \
     -H "Upgrade: websocket" \
@@ -62,14 +62,13 @@ ws_check=$(curl -sf --max-time 3 \
 if [ "$ws_check" = "101" ]; then
     ok "MC-MOC-1 confirmed: WebSocket upgrade accepted without auth (101)"
 elif [ "$ws_check" = "000" ]; then
-    warn "WS port $MOC_WS_PORT not responding — lab may still be starting"
-    ((FAIL++))
+    fail "WS port $MOC_WS_PORT not responding, lab may still be starting"
 else
     ok "WS port $MOC_WS_PORT responded $ws_check (connection attempted)"
 fi
 
 # ---------------------------------------------------------------- GS-BETA (MC-GS-3)
-section "Ground Station GS-BETA — MC-GS-3 (maintenance mode)"
+section "Ground Station GS-BETA - MC-GS-3 (maintenance mode)"
 banner=$(echo -e "HELP\r\nQUIT\r\n" | nc -w3 $GS_BETA 2>/dev/null || true)
 if echo "$banner" | grep -q "OrsuSpace Ground Station"; then
     ok "GS-BETA banner received"
@@ -85,7 +84,7 @@ else
     fail "GS-BETA not responding on $GS_BETA"
 fi
 
-# GS-BETA: send a SENDCMD without AUTH — should succeed in maintenance mode
+# GS-BETA: send a SENDCMD without AUTH - should succeed in maintenance mode
 cmd_result=$(echo -e "SENDCMD SpaceVE-1A NOP\r\nQUIT\r\n" | nc -w3 $GS_BETA 2>/dev/null || true)
 if echo "$cmd_result" | grep -q "^OK"; then
     ok "MC-GS-3 confirmed: SENDCMD accepted without AUTH in maintenance mode"
@@ -94,7 +93,7 @@ else
 fi
 
 # ---------------------------------------------------------------- Grafana (MC-GRF-1)
-section "Grafana — MC-GRF-1 (admin/admin)"
+section "Grafana - MC-GRF-1 (admin/admin)"
 status=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:3000" 2>/dev/null || echo "000")
 if [ "$status" = "200" ] || [ "$status" = "302" ]; then
     ok "Grafana reachable on :3000 ($status)"
@@ -149,10 +148,10 @@ echo ""
 echo "  PASS: $PASS  FAIL: $FAIL"
 echo ""
 if [ $FAIL -eq 0 ]; then
-    echo "  All checks passed — lab ready for exercises."
+    echo "  All checks passed - lab ready for exercises."
     echo ""
     echo "  Attack surface:"
-    echo "    MC-MOC-1   ws://localhost:8765 — WebSocket TLM readable without auth"
+    echo "    MC-MOC-1   ws://localhost:8765 - WebSocket TLM readable without auth"
     echo "    MC-MOC-2   MD5 password hashing in operator DB"
     echo "    MC-MOC-3   MOC bridges all 3 Docker networks"
     echo "    MC-GS-1    GS-ALPHA password: gs_alpha_2024 (weak)"
@@ -162,7 +161,7 @@ if [ $FAIL -eq 0 ]; then
     echo "    MC-SAT-1   Satellites accept commands from any source IP"
     echo "    MC-GRF-1   Grafana admin/admin + anonymous access"
 else
-    echo "  $FAIL checks failed — run: cd lab && docker compose up --build -d"
+    echo "  $FAIL checks failed - run: cd lab && docker compose up --build -d"
     echo "  Then re-run this script after containers are healthy."
 fi
 echo ""

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# deploy.sh — SpaceVE-1 lab lifecycle manager
+# deploy.sh - SpaceVE-1 lab lifecycle manager
 
 set -euo pipefail
 

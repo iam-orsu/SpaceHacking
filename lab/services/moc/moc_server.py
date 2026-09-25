@@ -7,7 +7,7 @@ asyncio server with:
   - WS  port 8765  : WebSocket for browser dashboard
   - HTTP port 8080 : serves static/index.html
 
-Intentional misconfigurations (no CVEs — training targets only):
+Intentional misconfigurations (no CVEs - training targets only):
   MC-MOC-1  WebSocket /tlm stream readable without authentication
   MC-MOC-2  MD5 password hashing (no bcrypt or Argon2)
   MC-MOC-3  Hardcoded SECRET_KEY same across MOC instances
@@ -147,7 +147,7 @@ async def relay_to_gs(satellite_id: str, func_name: str) -> tuple:
 
 
 async def fetch_nasa_imagery(lat: float, lon: float, resolution: int) -> dict:
-    """Fetch real Earth imagery from NASA Landsat API. No auth check — intentional (MC-MOC-5)."""
+    """Fetch real Earth imagery from NASA Landsat API. No auth check - intentional (MC-MOC-5)."""
     if not NASA_API_KEY:
         return {"success": False, "error": "NASA_API_KEY not configured. Add to lab/.env and rebuild."}
     params = {"lon": lon, "lat": lat, "dim": 0.1, "api_key": NASA_API_KEY}
@@ -173,7 +173,7 @@ async def fetch_nasa_imagery(lat: float, lon: float, resolution: int) -> dict:
                     body = await resp.text()
                     return {"success": False, "error": f"NASA API {resp.status}: {body[:200]}"}
     except asyncio.TimeoutError:
-        return {"success": False, "error": "NASA API timeout — satellite out of contact window?"}
+        return {"success": False, "error": "NASA API timeout - satellite out of contact window?"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -192,25 +192,32 @@ async def broadcast(msg: dict):
 
 
 async def ws_handler(websocket):
-    # MC-MOC-1b: token checked only at connection time, not per-message
+    # MC-MOC-1: the TLM stream is readable without authentication. A token is
+    # optional. When present and valid it attaches the operator identity so
+    # commands (submit_cmd) pass the per-role RBAC checks below. Anonymous
+    # clients can read telemetry but cannot send commands.
     parsed = urlparse(websocket.request.path)
     token  = parse_qs(parsed.query).get("token", [None])[0]
-    if not token or token not in ws_tokens:
-        reason = "Authentication required" if not token else "Invalid token"
-        await websocket.close(code=1008, reason=reason)
-        return
 
-    td = ws_tokens[token]
+    if token and token in ws_tokens:
+        td = ws_tokens[token]
+        sessions[websocket] = {"username": td["username"], "role": td["role"], "clearance": td["clearance"]}
+        authenticated = True
+        who_user, who_role = td["username"], td["role"]
+    else:
+        sessions[websocket] = {}
+        authenticated = False
+        who_user, who_role = None, None
+
     ws_clients.add(websocket)
-    sessions[websocket] = {"username": td["username"], "role": td["role"], "clearance": td["clearance"]}
     loop = asyncio.get_event_loop()
 
     for tlm in sat_state.values():
         await websocket.send(json.dumps({"type": "tlm_update", **tlm}, default=str))
     await websocket.send(json.dumps({
         "type": "connected", "moc_id": MOC_ID,
-        "ts": time.time(), "authenticated": True,
-        "username": td["username"], "role": td["role"],
+        "ts": time.time(), "authenticated": authenticated,
+        "username": who_user, "role": who_role,
     }))
 
     try:
@@ -373,7 +380,7 @@ async def http_status(request):
 
 
 async def http_login(request):
-    """POST /api/login — issues a WS auth token. Passwords stored as MD5 (MC-MOC-2)."""
+    """POST /api/login - issues a WS auth token. Passwords stored as MD5 (MC-MOC-2)."""
     try:
         data = await request.json()
     except Exception:
@@ -411,7 +418,7 @@ async def http_login(request):
 
 
 async def http_capture_imagery(request):
-    """POST /api/imagery/capture — fetch real NASA Earth imagery for a satellite's target."""
+    """POST /api/imagery/capture - fetch real NASA Earth imagery for a satellite's target."""
     try:
         data = await request.json()
     except Exception:
@@ -437,7 +444,7 @@ async def http_capture_imagery(request):
 
 
 async def http_redirect_imaging(request):
-    """POST /api/imagery/redirect — redirect satellite imaging target (red team attack vector)."""
+    """POST /api/imagery/redirect - redirect satellite imaging target (red team attack vector)."""
     try:
         data = await request.json()
     except Exception:

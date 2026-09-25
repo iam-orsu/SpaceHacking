@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Network Segmentation Enforcement Script
-# SpaceVE-1 Lab — Training environment
+# SpaceVE-1 Lab - Training environment
 #
 # Purpose:
 #   Documents the INTENDED network segmentation policy for the SpaceVE-1 lab.
@@ -12,7 +12,7 @@
 #
 # Misconfiguration MC-MOC-3:
 #   The MOC container (spaceve1-moc) is connected to ALL THREE networks.
-#   This defeats segmentation — an attacker with MOC access can pivot
+#   This defeats segmentation - an attacker with MOC access can pivot
 #   between the command, telemetry, and admin networks without restriction.
 #
 # These iptables rules document what SHOULD be enforced.

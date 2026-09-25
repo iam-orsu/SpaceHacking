@@ -1,8 +1,8 @@
 """
-Incident Response Monitor — 10-minute detection lag IDS.
+Incident Response Monitor - 10-minute detection lag IDS.
 
 Polls telemetry-db every 60s for anomalous events. When an anomaly is
-detected it is NOT written to the incidents table immediately — there is
+detected it is NOT written to the incidents table immediately - there is
 an intentional 600-second (10-minute) delay to simulate real-world IDS
 batch analysis latency. Attackers completing a kill chain have a 10-minute
 window before defenders see the alert.
@@ -58,7 +58,7 @@ def record_incident(conn, severity, inc_type, satellite_id, description, occurre
             ON CONFLICT DO NOTHING
         """, (severity, inc_type, satellite_id, description, occurred_at, detected_at))
     conn.commit()
-    logging.info("INCIDENT [%s] %s — %s", severity, inc_type, description)
+    logging.info("INCIDENT [%s] %s - %s", severity, inc_type, description)
     return True
 
 
@@ -75,7 +75,7 @@ def check_command_burst(conn, window_start):
     for row in rows:
         record_incident(conn, "HIGH", "IR-001_CMD_BURST",
             row["satellite_id"],
-            f"Operator {row['submitted_by']} sent {row['cnt']} commands in 60s — possible replay/injection",
+            f"Operator {row['submitted_by']} sent {row['cnt']} commands in 60s - possible replay/injection",
             row["first_at"])
 
 
@@ -108,7 +108,7 @@ def check_downlink_camera_combo(conn, window_start):
     for row in rows:
         record_incident(conn, "MEDIUM", "IR-003_DOWNLINK_CAMERA",
             row["satellite_id"],
-            "Camera + downlink active simultaneously — mission data exposure risk",
+            "Camera + downlink active simultaneously - mission data exposure risk",
             row["ts"])
 
 
@@ -123,7 +123,7 @@ def check_memory_dump(conn, window_start):
     for row in rows:
         record_incident(conn, "CRITICAL", "IR-004_MEMORY_DUMP",
             row["satellite_id"],
-            f"Memory dump initiated by {row['submitted_by']} — potential data exfiltration",
+            f"Memory dump initiated by {row['submitted_by']} - potential data exfiltration",
             row["submitted_at"])
 
 
@@ -153,12 +153,12 @@ def check_safe_mode(conn, window_start):
     for row in rows:
         record_incident(conn, "CRITICAL", "IR-006_SAFE_MODE_INDUCED",
             row["satellite_id"],
-            f"Safe mode induced by {row['submitted_by']} — constellation availability impact",
+            f"Safe mode induced by {row['submitted_by']} - constellation availability impact",
             row["submitted_at"])
 
 
 def run():
-    logging.info("IDS monitor starting — detection lag %ds, poll interval %ds",
+    logging.info("IDS monitor starting - detection lag %ds, poll interval %ds",
                  DETECTION_LAG_S, POLL_INTERVAL)
     while True:
         try:

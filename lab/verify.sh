@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# verify.sh — SpaceVE-1 lab health check
+# verify.sh - SpaceVE-1 lab health check
 # Run after deploy.sh start to confirm all services are up.
 
 PASS=0

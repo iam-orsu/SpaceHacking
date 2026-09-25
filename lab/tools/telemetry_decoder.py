@@ -6,7 +6,7 @@ SpaceVE-1 Lab Attack Tool
 Decodes and displays satellite telemetry from the MOC.
 
 Modes:
-  --mode status  : Poll MOC /status (no auth required — shows tracked satellites)
+  --mode status  : Poll MOC /status (no auth required - shows tracked satellites)
   --mode udp     : Listen on UDP 5000 for raw binary CCSDS TM from satellites
                    Must run from inside Docker spacelab-tlm network (192.168.62.0/24)
 
@@ -91,7 +91,7 @@ def decode_pretty(tlm: dict, source: str = ""):
     if tlm.get("mission_downlink_enabled"):
         print()
         print(f"  *** MISSION DOWNLINK ACTIVE ***")
-        print(f"  *** Mission data is flowing in WS TLM stream — subscribe to ws://localhost:8765 ***")
+        print(f"  *** Mission data is flowing in WS TLM stream - subscribe to ws://localhost:8765 ***")
 
 
 def mode_status(args):
@@ -124,7 +124,7 @@ def mode_status(args):
 
 def mode_udp(args):
     print(f"\n  Listening on UDP {TLM_UDP_PORT} for binary CCSDS TM from satellites")
-    print(f"  Note: port {TLM_UDP_PORT} is NOT exposed to host — run from inside Docker spacelab-tlm network.")
+    print(f"  Note: port {TLM_UDP_PORT} is NOT exposed to host - run from inside Docker spacelab-tlm network.")
     print(f"  Packet format: 6-byte CCSDS primary header + 36-byte TLM payload.\n")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

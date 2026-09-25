@@ -4,7 +4,7 @@ CCSDS Space Packet telemetry parser.
 Handles:
   - TM packets from satellites (binary, 36-byte payload with CDS time)
   - TM[1,1] TC Acceptance packets (PUS-C, 19-byte payload)
-  - Mission data packets (APID = primary + 0x100, JSON payload, cleartext — intentional)
+  - Mission data packets (APID = primary + 0x100, JSON payload, cleartext - intentional)
 """
 import json
 import struct

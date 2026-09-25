@@ -25,7 +25,7 @@ Attack surface (intentional misconfigurations):
   - CCSDS checksum validates packet integrity but NOT authenticity
   - No source IP verification on command port
   - Any valid CCSDS packet from any host in 192.168.61.0/24 is executed
-  - Mission data separate from health TLM — requires DOWNLINK_ENABLE + MISSION_DOWNLINK_ENABLE
+  - Mission data separate from health TLM - requires DOWNLINK_ENABLE + MISSION_DOWNLINK_ENABLE
 """
 
 import json
@@ -117,7 +117,7 @@ state = {
     "alt_km": ALTITUDE_KM,
     "eclipse": False,
     "ground_track_velocity_ms": 7661.0,
-    # Mission (leaked when downlink enabled — intentional misconfiguration)
+    # Mission (leaked when downlink enabled - intentional misconfiguration)
     # Crown jewel data: classified tasking orders embedded in unencrypted TLM stream
     "mission_plan": {
         "mission_id":    f"OSA-2026-{SATELLITE_ID}03",
@@ -213,7 +213,7 @@ def compute_orbital_position(sim_elapsed: float) -> dict:
     lon   = math.degrees(math.atan2(y_ecef, x_ecef))
     alt   = math.sqrt(x_ecef**2 + y_ecef**2 + z_ecef**2) - RE
 
-    # Eclipse: simplified — sun is at fixed ecliptic position in ECI
+    # Eclipse: simplified - sun is at fixed ecliptic position in ECI
     # Sun longitude in ECI precesses ~1°/day from vernal equinox
     sun_lon_eci = math.radians((280.461 + 0.9856474 * sim_elapsed / 86400.0) % 360)
     sun_x = math.cos(sun_lon_eci)
@@ -470,7 +470,7 @@ def execute_command(func_code: int, user_data: bytes, src_ip: str):
             state["power_consumption_w"] = max(45.0, state["power_consumption_w"] - 15.0)
         elif func_code == 0x03:  # DOWNLINK_ENABLE
             state["downlink_enabled"] = True
-            print(f"[{SATELLITE_NAME}] DOWNLINK ENABLED by {src_ip} — health telemetry active")
+            print(f"[{SATELLITE_NAME}] DOWNLINK ENABLED by {src_ip} - health telemetry active")
         elif func_code == 0x04:  # DOWNLINK_DISABLE
             state["downlink_enabled"] = False
         elif func_code == 0x05:  # MEMORY_DUMP
@@ -515,7 +515,7 @@ def execute_command(func_code: int, user_data: bytes, src_ip: str):
             state["power_consumption_w"] = 30.0
         elif func_code == 0x0B:  # MISSION_DOWNLINK_ENABLE
             state["mission_downlink_enabled"] = True
-            print(f"[{SATELLITE_NAME}] MISSION DOWNLINK ENABLED by {src_ip} — mission_plan now in TM stream!")
+            print(f"[{SATELLITE_NAME}] MISSION DOWNLINK ENABLED by {src_ip} - mission_plan now in TM stream!")
         elif func_code == 0x0C:  # MISSION_DOWNLINK_DISABLE
             state["mission_downlink_enabled"] = False
 
@@ -701,7 +701,7 @@ def telemetry_loop():
         try:
             sock.sendto(build_ccsds_tm(APID, seq, build_tlm_payload()),
                         (TLM_HOST, TLM_PORT))
-            # Mission data packet — requires both DOWNLINK_ENABLE and MISSION_DOWNLINK_ENABLE
+            # Mission data packet - requires both DOWNLINK_ENABLE and MISSION_DOWNLINK_ENABLE
             with state_lock:
                 dl      = state["downlink_enabled"]
                 mdl     = state["mission_downlink_enabled"]

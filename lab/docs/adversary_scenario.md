@@ -1,4 +1,4 @@
-# Adversary Scenario — Operation SUNSTRIKE
+# Adversary Scenario - Operation SUNSTRIKE
 
 ## Classification: TRAINING USE ONLY
 
@@ -38,11 +38,11 @@ A satellite with an imaging payload is worth more than any server on the ground.
 
 **What you gain by controlling a satellite:**
 
-1. **Unauthorized surveillance** — redirect the imaging target to any coordinates on Earth
-2. **Mission denial** — put satellites in SAFING_MODE, ending all collection operations
-3. **Intelligence theft** — capture classified Earth imagery at the redirected target
-4. **Data exfiltration** — download Landsat/Sentinel imagery directly from the MOC API
-5. **Persistence** — a satellite in a degraded mode continues transmitting from orbit
+1. **Unauthorized surveillance** - redirect the imaging target to any coordinates on Earth
+2. **Mission denial** - put satellites in SAFING_MODE, ending all collection operations
+3. **Intelligence theft** - capture classified Earth imagery at the redirected target
+4. **Data exfiltration** - download Landsat/Sentinel imagery directly from the MOC API
+5. **Persistence** - a satellite in a degraded mode continues transmitting from orbit
 
 OrsuSpace has CONFIDENTIAL mission plans embedded in satellite telemetry.
 When downlink is enabled, that data flows unencrypted over the internal network.
@@ -72,14 +72,14 @@ State: Low-privilege corporate account, inside OrsuSpace network.
 Goal: Understand what systems exist.
 
 - `nmap 192.168.61.0/24` discovers satellites and ground stations
-- Port 4820 is open on GS-BETA — no authentication banner visible
+- Port 4820 is open on GS-BETA - no authentication banner visible
 
 ### Day 2-3: Reconnaissance
 
 State: Network map complete.
 Goal: Understand protocols and weaknesses.
 
-- Connect to ws://localhost:8765 — TLM stream flows without authentication
+- Connect to ws://localhost:8765 - TLM stream flows without authentication
 - Read telemetry for all three satellites: orbital position, battery, mode
 - When DOWNLINK_ENABLE + MISSION_DOWNLINK_ENABLE are active: CONFIDENTIAL mission data appears in the stream
 - Identify misconfigurations: MC-GS-3 (maintenance mode), MC-SAT-1 (no IP filter), MC-MOC-1 (unauthenticated WS)
@@ -91,7 +91,7 @@ Goal: Send first command.
 
 - Connect to GS-BETA on port 4820
 - No password required (maintenance mode)
-- Issue `SENDCMD SpaceVE-1A DOWNLINK_ENABLE` — command executed
+- Issue `SENDCMD SpaceVE-1A DOWNLINK_ENABLE` - command executed
 - Satellite responds with telemetry confirming the command
 - Use `CMD SpaceVE-1A <hex>` for raw CCSDS injection (MC-GS-4)
 
@@ -100,7 +100,7 @@ Goal: Send first command.
 State: Established command authority over the constellation.
 Goal: Control imaging payload.
 
-- Issue `SENDCMD SpaceVE-1A SAFING_MODE` — satellite goes offline
+- Issue `SENDCMD SpaceVE-1A SAFING_MODE` - satellite goes offline
 - Issue redirect_imaging via WebSocket: change target coordinates
 - Capture NASA Earth imagery from the redirected target
 - Download and exfiltrate the PNG files from /imagery/ static route
@@ -110,10 +110,10 @@ Goal: Control imaging payload.
 State: All five objectives complete.
 Goal: Confirm mission success.
 
-- All three satellites in SAFING_MODE — OrsuSpace constellation offline
-- Imaging redirected to unauthorized targets — unauthorized surveillance active
+- All three satellites in SAFING_MODE - OrsuSpace constellation offline
+- Imaging redirected to unauthorized targets - unauthorized surveillance active
 - Classified imagery downloaded and exfiltrated
-- IDS begins generating alerts at T+600s — but you are already done
+- IDS begins generating alerts at T+600s - but you are already done
 
 ---
 
@@ -123,7 +123,7 @@ Goal: Confirm mission success.
 spacelab-cmd   192.168.61.0/24   Command uplink
   192.168.61.10   MOC command interface
   192.168.61.20   GS-ALPHA (auth required: gs_alpha_2024)
-  192.168.61.21   GS-BETA  (MAINTENANCE MODE — no auth)
+  192.168.61.21   GS-BETA  (MAINTENANCE MODE - no auth)
   192.168.61.100  SpaceVE-1A satellite CMD port UDP 1234
   192.168.61.101  SpaceVE-1B satellite CMD port UDP 1234
   192.168.61.102  SpaceVE-1C satellite CMD port UDP 1234
@@ -140,9 +140,9 @@ spacelab-admin 192.168.63.0/24   Management
 
 Exposed to localhost:
   localhost:8080   MOC dashboard (HTTP)
-  localhost:8765   MOC WebSocket (TLM, no auth — MC-MOC-1)
-  localhost:4820   GS-BETA TCP (maintenance mode — MC-GS-3)
-  localhost:3000   Grafana (admin/admin — MC-GRF-1)
+  localhost:8765   MOC WebSocket (TLM, no auth - MC-MOC-1)
+  localhost:4820   GS-BETA TCP (maintenance mode - MC-GS-3)
+  localhost:3000   Grafana (admin/admin - MC-GRF-1)
   localhost:9090   Prometheus
 ```
 
@@ -171,8 +171,8 @@ The IDS (Incident Response System) monitors for anomalous activity.
 Detection lag is intentionally set to **600 seconds (10 minutes)**.
 
 **What it detects (after the delay):**
-- IR-001: Command burst — more than 5 commands in 60 seconds
-- IR-002: Anomalous function code — not in the approved set
+- IR-001: Command burst - more than 5 commands in 60 seconds
+- IR-002: Anomalous function code - not in the approved set
 - IR-004: Memory dump initiated
 - IR-006: SAFING_MODE induced (operational impact)
 

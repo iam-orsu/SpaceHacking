@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ccsds_packet_forge.py — CCSDS Space Packet Forger
+ccsds_packet_forge.py - CCSDS Space Packet Forger
 SpaceVE-1 Lab Attack Tool
 
 Builds syntactically valid CCSDS Space Packet Protocol (SPP) packets

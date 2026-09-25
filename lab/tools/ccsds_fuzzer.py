@@ -1,5 +1,5 @@
 """
-ccsds_fuzzer.py — Fuzz the CCSDS command port on a satellite or ground station
+ccsds_fuzzer.py - Fuzz the CCSDS command port on a satellite or ground station
 
 Usage:
     python3 ccsds_fuzzer.py --target 192.168.61.100:1234 --iterations 200

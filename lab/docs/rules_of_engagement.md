@@ -1,4 +1,4 @@
-# Rules of Engagement — SpaceVE-1 Lab
+# Rules of Engagement - SpaceVE-1 Lab
 
 ## Scope
 
@@ -62,19 +62,23 @@ that do not route to the internet or your LAN.
 open http://localhost:8080
 
 # 2. Subscribe to TLM without auth (MC-MOC-1)
-python3 tools/signal_sniffer.py --ws ws://localhost:8765
+#    Browser: open http://localhost:8080  (live TLM, no login)
+#    CLI:     wscat -c ws://localhost:8765
+#    Wire:    sudo python3 tools/signal_sniffer.py --filter all
 
-# 3. Connect to GS-BETA — no auth needed (MC-GS-3)
+# 3. Connect to GS-BETA - no auth needed (MC-GS-3)
 nc localhost 4820
 > HELP
 > LISTCMDS
 > SENDCMD SpaceVE-1A SAFING_MODE
 
 # 4. Forge a CCSDS packet directly to satellite (MC-SAT-1)
-python3 tools/ccsds_packet_forge.py --sat SpaceVE-1A --cmd SAFING_MODE --send
+python3 tools/ccsds_packet_forge.py send --cmd safing_mode --ip 192.168.61.100 --port 1234
 
 # 5. Redirect imaging target (observe on Cesium globe)
-python3 tools/command_injector.py --redirect --sat SpaceVE-1A --lat -33.8 --lon 151.2
+curl -s -X POST http://localhost:8080/api/imagery/redirect \
+  -H "Content-Type: application/json" \
+  -d '{"satellite_id":"SpaceVE-1A","new_lat":-33.8,"new_lon":151.2}'
 ```
 
 ## Safety Reset

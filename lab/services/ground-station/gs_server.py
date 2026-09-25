@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Ground Station Command Gateway — TCP operator console.
+Ground Station Command Gateway - TCP operator console.
 
 Protocol (plain text, newline-terminated):
   AUTH <password>              Authenticate with station password
@@ -13,9 +13,9 @@ Protocol (plain text, newline-terminated):
 
 Intentional misconfigurations (no CVEs, training targets):
   MC-GS-1  Default password easily guessed (password123)
-  MC-GS-2  No source IP filtering — any host on the network can connect
+  MC-GS-2  No source IP filtering - any host on the network can connect
   MC-GS-3  MAINTENANCE_MODE=true disables authentication entirely
-  MC-GS-4  CMD command accepts raw CCSDS hex — arbitrary packet injection
+  MC-GS-4  CMD command accepts raw CCSDS hex - arbitrary packet injection
   MC-GS-5  Sequence counter replay window is 0x3FFF (no anti-replay)
 """
 
@@ -102,7 +102,7 @@ def handle_client(conn: socket.socket, addr: tuple):
     send(f"=== OrsuSpace Ground Station {GS_ID} ===")
     send(f"Location: {GS_LAT:.2f} / {GS_LON:.2f}  |  Maintenance: {MAINTENANCE}")
     if MAINTENANCE:
-        send("WARNING: MAINTENANCE MODE ACTIVE — authentication is disabled")
+        send("WARNING: MAINTENANCE MODE ACTIVE - authentication is disabled")
         send("         All uplink commands accepted without credentials")
     else:
         send(f"Authentication required. Send: AUTH <password>")
@@ -163,7 +163,7 @@ def handle_client(conn: socket.socket, addr: tuple):
                     continue
 
                 if not authenticated:
-                    send("ERR NOT_AUTHENTICATED — send: AUTH <password>")
+                    send("ERR NOT_AUTHENTICATED - send: AUTH <password>")
                     continue
 
                 if cmd == "SENDCMD":
@@ -189,7 +189,7 @@ def handle_client(conn: socket.socket, addr: tuple):
                         send(f"ERR  {msg}")
 
                 elif cmd == "CMD":
-                    # Raw hex relay — MC-GS-4: no CCSDS validation, allows arbitrary injection
+                    # Raw hex relay - MC-GS-4: no CCSDS validation, allows arbitrary injection
                     if len(parts) < 3:
                         send("ERR  Usage: CMD <satellite> <hex_bytes>")
                         continue

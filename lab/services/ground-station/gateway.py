@@ -1,5 +1,5 @@
 """
-Ground Station TCP Gateway — CCSDS relay to satellite UDP endpoints.
+Ground Station TCP Gateway - CCSDS relay to satellite UDP endpoints.
 
 Listens on TCP 9001. Accepts CCSDS packets from MOC and relays to the
 satellite UDP port 8001. Applies credentials check UNLESS

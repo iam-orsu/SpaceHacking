@@ -1,5 +1,5 @@
 #!/bin/bash
-# install_tools.sh — Attacker VM Tool Installation
+# install_tools.sh - Attacker VM Tool Installation
 #
 # Run this on the attacker machine (Ubuntu 22.04) to install all tools
 # needed to complete the SpaceVE-1 lab attack chain.
@@ -28,7 +28,7 @@ warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 err()  { echo -e "${RED}[-]${NC} $*"; exit 1; }
 
 echo ""
-echo "  SpaceVE-1 Lab — Attacker Tool Installation"
+echo "  SpaceVE-1 Lab - Attacker Tool Installation"
 echo "  ============================================="
 echo ""
 

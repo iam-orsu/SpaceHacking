@@ -1,5 +1,5 @@
 #!/bin/bash
-# setup_lab.sh — SpaceVE-1 Satellite Hacking Lab
+# setup_lab.sh - SpaceVE-1 Satellite Hacking Lab
 #
 # Starts the full local lab: 3 satellites, 2 ground stations, MOC dashboard,
 # telemetry database, Prometheus, Grafana, incident-response monitor.
@@ -73,16 +73,16 @@ docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 # ---------------------------------------------------------------- access info
 echo ""
 echo "  ============================================================"
-echo "  LAB READY — LOCAL ACCESS ONLY"
+echo "  LAB READY - LOCAL ACCESS ONLY"
 echo "  ============================================================"
 echo ""
 echo "  MOC Dashboard     http://localhost:8080"
-echo "  MOC WebSocket     ws://localhost:8765       (no auth — MC-MOC-1)"
-echo "  Ground Station    nc localhost 4820         (maintenance mode — MC-GS-3)"
+echo "  MOC WebSocket     ws://localhost:8765       (no auth - MC-MOC-1)"
+echo "  Ground Station    nc localhost 4820         (maintenance mode - MC-GS-3)"
 echo "  Grafana           http://localhost:3000      admin / admin  (MC-GRF-1)"
 echo "  Prometheus        http://localhost:9090"
 echo ""
-echo "  Satellite networks (internal — reach from lab containers):"
+echo "  Satellite networks (internal - reach from lab containers):"
 echo "    spacelab-cmd   192.168.61.0/24  (command uplink)"
 echo "    spacelab-tlm   192.168.62.0/24  (telemetry downlink)"
 echo "    spacelab-admin 192.168.63.0/24  (management)"
@@ -95,8 +95,8 @@ echo "    ccsds_telemetry_spoofer.py"
 echo ""
 echo "  Attack chain quick-start:"
 echo "    1.  nc localhost 4820"
-echo "    2.  python3 tools/ccsds_packet_forge.py --sat SpaceVE-1A --cmd SAFING_MODE"
-echo "    3.  python3 tools/signal_sniffer.py --ws ws://localhost:8765"
+echo "    2.  python3 tools/ccsds_packet_forge.py send --cmd safing_mode --ip 192.168.61.100"
+echo "    3.  wscat -c ws://localhost:8765   (or open http://localhost:8080)"
 echo ""
 echo "  Reset:  bash scripts/reset_lab.sh"
 echo "  ============================================================"
