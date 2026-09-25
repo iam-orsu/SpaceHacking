@@ -26,8 +26,8 @@ CCSDS TM primary header (6 bytes, big-endian):
     Bits 18-31: Sequence Count
     Bits 32-47: Packet Data Length (payload_len - 1)
 
-TM payload format (32 bytes, struct ">IHHHhHHhhHhhBBH"):
-    mission_time_s  uint32
+TM payload format (36 bytes, struct ">8sHHHhHHhhHhhBBH"):
+    cds_timestamp   8 bytes (CCSDS CDS format — set to 8 zero bytes when spoofing)
     mode            uint16   (0=NOMINAL,1=SAFE,2=CAMERA_ON,3=DOWNLINK_ACTIVE,4=REBOOT)
     bat_soc_pm      uint16   (permil, 0-1000)
     bat_mv          uint16   (millivolts)
@@ -63,8 +63,8 @@ MODE_CODES = {
     "REBOOT":          4,
 }
 
-TLM_FMT  = ">IHHHhHHhhHhhBBH"
-TLM_SIZE = struct.calcsize(TLM_FMT)
+TLM_FMT  = ">8sHHHhHHhhHhhBBH"
+TLM_SIZE = struct.calcsize(TLM_FMT)  # 36 bytes — matches satellite TLM_FMT
 
 DEFAULTS = {
     "mission_time_s": 3600,
@@ -98,9 +98,11 @@ def build_ccsds_tm(apid, seq_count, payload):
 
 def build_payload(params):
     mode_c = MODE_CODES.get(str(params.get("mode", "NOMINAL")).upper(), 0)
+    # First field is 8-byte CDS timestamp (satellite uses cds_now()). Use zeros for spoofed packets.
+    cds_ts = struct.pack(">II", int(params.get("mission_time_s", DEFAULTS["mission_time_s"])), 0)
     return struct.pack(
         TLM_FMT,
-        int(params.get("mission_time_s", DEFAULTS["mission_time_s"])),
+        cds_ts,
         mode_c,
         clamp(float(params.get("battery_soc", DEFAULTS["battery_soc"])) * 10, 0, 1000),
         clamp(float(params.get("battery_v",   DEFAULTS["battery_v"]))   * 1000, 0, 65535),
