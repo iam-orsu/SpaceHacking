@@ -114,16 +114,34 @@ state = {
     "alt_km": ALTITUDE_KM,
     "eclipse": False,
     "ground_track_velocity_ms": 7661.0,
-    # Mission (leaked when downlink enabled — intentional)
+    # Mission (leaked when downlink enabled — intentional misconfiguration)
+    # Crown jewel data: classified tasking orders embedded in unencrypted TLM stream
     "mission_plan": {
-        "mission_id": f"OSA-2024-{SATELLITE_ID}03",
-        "classification": "CONFIDENTIAL",
-        "target_name": f"REGION-{SATELLITE_ID}7",
-        "lat": 33.7 if SATELLITE_ID == "A" else (51.2 if SATELLITE_ID == "B" else -35.1),
-        "lon": 73.0 if SATELLITE_ID == "A" else (9.8 if SATELLITE_ID == "B" else 147.3),
-        "window_start": "2024-06-15T02:30:00Z",
-        "window_end": "2024-06-15T02:42:00Z",
-        "payload_mode": "IMAGING_HIGH_RES",
+        "mission_id":    f"OSA-2026-{SATELLITE_ID}03",
+        "operation":     "SUNSTRIKE",
+        "classification": "TOP SECRET//NOFORN",
+        "target_name":   (
+            "AGRA-INDUSTRIAL-COMPLEX"   if SATELLITE_ID == "A" else
+            ("BOCHUM-RAIL-JUNCTION"     if SATELLITE_ID == "B" else
+             "SYDNEY-PORT-FACILITY")
+        ),
+        "target_description": (
+            "High-resolution ISR collection: industrial output capacity assessment"
+            if SATELLITE_ID == "A" else
+            ("Rail network throughput monitoring: logistics corridor activity"
+             if SATELLITE_ID == "B" else
+             "Maritime traffic analysis: vessel identification and cargo classification")
+        ),
+        "lat":  33.7  if SATELLITE_ID == "A" else (51.2  if SATELLITE_ID == "B" else -35.1),
+        "lon":  73.0  if SATELLITE_ID == "A" else (9.8   if SATELLITE_ID == "B" else 147.3),
+        "collection_requirement": f"NTM-ISR-2026-{SATELLITE_ID}03",
+        "intelligence_value":     "HIGH",
+        "authorized_clearance":   "TOP SECRET",
+        "window_start":  "2026-09-26T02:30:00Z",
+        "window_end":    "2026-09-26T02:42:00Z",
+        "payload_mode":  "IMAGING_HIGH_RES",
+        "resolution_m":  1.0,
+        "revisit_hours": 12,
     },
     # Imaging payload state
     "imaging_target_lat":  33.7  if SATELLITE_ID == "A" else (51.2  if SATELLITE_ID == "B" else -35.1),

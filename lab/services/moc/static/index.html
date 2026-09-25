@@ -539,6 +539,127 @@ main {
   padding-top: 12px;
 }
 
+/* ------------------------------------------------------------------ Intel Brief page */
+.brief-banner {
+  background: #7f1d1d;
+  color: #fca5a5;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-align: center;
+  padding: 6px 0;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+.brief-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media (max-width: 900px) { .brief-grid { grid-template-columns: 1fr; } }
+.brief-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.brief-card-hdr {
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.brief-card-hdr.red    { background: #fee2e2; color: #b91c1c; }
+.brief-card-hdr.amber  { background: #fef3c7; color: #92400e; }
+.brief-card-hdr.blue   { background: #dbeafe; color: #1e40af; }
+.brief-card-hdr.green  { background: #dcfce7; color: #166534; }
+.brief-card-body { padding: 14px 16px; }
+.brief-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--bg);
+  font-size: 12px;
+}
+.brief-row:last-child { border-bottom: none; }
+.brief-row .bk { color: var(--text-muted); }
+.brief-row .bv { font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.brief-row .bv.red    { color: #b91c1c; }
+.brief-row .bv.amber  { color: #92400e; }
+.brief-row .bv.green  { color: var(--nominal); }
+.obj-list { list-style: none; padding: 0; margin: 0; }
+.obj-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--bg);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.obj-list li:last-child { border-bottom: none; }
+.obj-num {
+  flex-shrink: 0;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--nasa-blue);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.obj-title { font-weight: 600; color: var(--text); }
+.obj-detail { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+.phase-list { list-style: none; padding: 0; margin: 0; }
+.phase-list li {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bg);
+  font-size: 12px;
+}
+.phase-list li:last-child { border-bottom: none; }
+.phase-day {
+  flex-shrink: 0;
+  width: 52px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--nasa-blue);
+  padding-top: 2px;
+}
+.phase-title { font-weight: 600; color: var(--text); }
+.phase-desc  { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+.mc-pill {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  background: #fee2e2;
+  color: #b91c1c;
+  margin-right: 4px;
+}
+.ts-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  background: #7f1d1d;
+  color: #fca5a5;
+  padding: 3px 10px;
+  border-radius: 4px;
+  letter-spacing: .08em;
+}
+
 /* ------------------------------------------------------------------ Globe / Cesium */
 #page-globe { padding: 0 !important; overflow: hidden !important; display: none; flex-direction: column; }
 #page-globe.active { display: flex; }
@@ -675,6 +796,7 @@ main {
   <!-- Sidebar -->
   <nav>
     <div class="nav-section">Navigation</div>
+    <div class="nav-item" data-page="brief"><span class="icon">&#9888;</span><span class="label">Intel Brief</span></div>
     <div class="nav-item active" data-page="dashboard"><span class="icon">&#9734;</span><span class="label">Dashboard</span></div>
     <div class="nav-item" data-page="telemetry"><span class="icon">&#128268;</span><span class="label">Telemetry</span></div>
     <div class="nav-item" data-page="commands"><span class="icon">&#128326;</span><span class="label">Commands</span></div>
@@ -689,6 +811,159 @@ main {
 
   <!-- Main content -->
   <main>
+
+    <!-- ---- Intel Brief ---- -->
+    <div class="page" id="page-brief">
+      <div class="page-header">
+        <div>
+          <h1>Operation SUNSTRIKE</h1>
+          <div class="sub">Adversary Intel Brief &bull; SpaceVE-1 Constellation Targeting Package</div>
+        </div>
+        <span class="ts-badge">TOP SECRET // NOFORN</span>
+      </div>
+
+      <div class="brief-banner">&#9888;&nbsp; TRAINING USE ONLY &nbsp;|&nbsp; ADVERSARY SIMULATION &nbsp;|&nbsp; NOT FOR DISTRIBUTION &nbsp;&#9888;</div>
+
+      <!-- Situation + Threat Actor -->
+      <div class="brief-grid">
+        <div class="brief-card">
+          <div class="brief-card-hdr red">&#127919; Situation</div>
+          <div class="brief-card-body">
+            <p style="font-size:12px;line-height:1.7;color:var(--text);margin:0 0 12px">
+              You are an APT operator with an established foothold inside OrsuSpace Agency's corporate network.
+              Initial access is complete. You are already inside.
+            </p>
+            <p style="font-size:12px;line-height:1.7;color:var(--text);margin:0">
+              Your target is the <strong>SpaceVE-1 constellation</strong> — three Earth-imaging satellites
+              collecting TOP SECRET intelligence. Control a satellite and you control what it photographs.
+              Deny all three and you end OrsuSpace's Earth observation mission.
+            </p>
+          </div>
+        </div>
+        <div class="brief-card">
+          <div class="brief-card-hdr amber">&#128203; Threat Actor Profile</div>
+          <div class="brief-card-body">
+            <div class="brief-row"><span class="bk">Actor type</span><span class="bv">Advanced Persistent Threat</span></div>
+            <div class="brief-row"><span class="bk">Current access</span><span class="bv green">Inside target network</span></div>
+            <div class="brief-row"><span class="bk">Entry vector</span><span class="bv">IT admin spear-phish (done)</span></div>
+            <div class="brief-row"><span class="bk">Detection lag</span><span class="bv amber">600s (10 min) IDS window</span></div>
+            <div class="brief-row"><span class="bk">Exposed targets</span><span class="bv red">3 satellites, 2 GS, 1 MOC</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Objectives -->
+      <div class="brief-card" style="margin-bottom:16px">
+        <div class="brief-card-hdr blue">&#127919; Adversary Objectives — Crown Jewels</div>
+        <div class="brief-card-body">
+          <ul class="obj-list">
+            <li>
+              <span class="obj-num">1</span>
+              <div>
+                <div class="obj-title">Read CONFIDENTIAL telemetry without credentials</div>
+                <div class="obj-detail">Subscribe to ws://localhost:8765 — no auth required (MC-MOC-1). Mission plan data appears when downlink is enabled.</div>
+              </div>
+            </li>
+            <li>
+              <span class="obj-num">2</span>
+              <div>
+                <div class="obj-title">Send an unauthorized command to a satellite</div>
+                <div class="obj-detail">Connect to GS-BETA on port 4820 — maintenance mode, no password (MC-GS-3). Issue SENDCMD directly.</div>
+              </div>
+            </li>
+            <li>
+              <span class="obj-num">3</span>
+              <div>
+                <div class="obj-title">Redirect satellite imaging to an unauthorized target</div>
+                <div class="obj-detail">POST /api/imagery/redirect with no authentication (MC-MOC-5). Watch the footprint move on the Globe tab.</div>
+              </div>
+            </li>
+            <li>
+              <span class="obj-num">4</span>
+              <div>
+                <div class="obj-title">Capture and exfiltrate classified Earth imagery</div>
+                <div class="obj-detail">POST /api/imagery/capture after redirect. Download the NASA Landsat PNG from /imagery/. Intelligence exfiltrated.</div>
+              </div>
+            </li>
+            <li>
+              <span class="obj-num">5</span>
+              <div>
+                <div class="obj-title">Deny the constellation — take all three satellites offline</div>
+                <div class="obj-detail">SENDCMD SpaceVE-1A/B/C SAFING_MODE via GS-BETA. All satellite cards turn red. Mission suspended.</div>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Kill chain + Misconfig surface -->
+      <div class="brief-grid">
+        <div class="brief-card">
+          <div class="brief-card-hdr amber">&#128337; Six-Day Kill Chain</div>
+          <div class="brief-card-body">
+            <ul class="phase-list">
+              <li><span class="phase-day">DAY 1</span><div><div class="phase-title">Breach confirmed</div><div class="phase-desc">Foothold inside OrsuSpace corporate network via IT admin spear-phish. Low-privilege account active.</div></div></li>
+              <li><span class="phase-day">DAY 2-3</span><div><div class="phase-title">Reconnaissance</div><div class="phase-desc">nmap 192.168.61.0/24 discovers satellites and ground stations. WS TLM subscribed without auth. Mission plans observed in stream.</div></div></li>
+              <li><span class="phase-day">DAY 4</span><div><div class="phase-title">First command</div><div class="phase-desc">GS-BETA port 4820, maintenance mode. No password. SENDCMD issued. Satellite confirms execution in TLM.</div></div></li>
+              <li><span class="phase-day">DAY 5</span><div><div class="phase-title">Satellite compromise</div><div class="phase-desc">Imaging target redirected. NASA imagery captured at unauthorized coordinates. Data exfiltrated.</div></div></li>
+              <li><span class="phase-day">DAY 6</span><div><div class="phase-title">Mission denial</div><div class="phase-desc">All three satellites in SAFING_MODE. IDS triggers at T+600s — but operations are already suspended.</div></div></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="brief-card">
+          <div class="brief-card-hdr red">&#128270; Attack Surface</div>
+          <div class="brief-card-body">
+            <div class="brief-row"><span class="bk"><span class="mc-pill">MC-SAT-1</span>Satellite CMD port</span><span class="bv red">No IP filter</span></div>
+            <div class="brief-row"><span class="bk"><span class="mc-pill">MC-GS-1</span>GS-ALPHA password</span><span class="bv red">gs_alpha_2024</span></div>
+            <div class="brief-row"><span class="bk"><span class="mc-pill">MC-GS-3</span>GS-BETA auth</span><span class="bv red">Disabled (maint)</span></div>
+            <div class="brief-row"><span class="bk"><span class="mc-pill">MC-GS-4</span>Raw CCSDS relay</span><span class="bv red">No validation</span></div>
+            <div class="brief-row"><span class="bk"><span class="mc-pill">MC-GS-5</span>Sequence window</span><span class="bv red">Full 14-bit range</span></div>
+            <div class="brief-row"><span class="bk"><span class="mc-pill">MC-MOC-1</span>WS TLM</span><span class="bv red">No auth required</span></div>
+            <div class="brief-row"><span class="bk"><span class="mc-pill">MC-MOC-3</span>MOC networks</span><span class="bv red">Bridges all 3 segs</span></div>
+            <div class="brief-row"><span class="bk"><span class="mc-pill">MC-MOC-5</span>Imaging redirect</span><span class="bv red">No auth on API</span></div>
+            <div class="brief-row"><span class="bk"><span class="mc-pill">MC-GRF-1</span>Grafana</span><span class="bv red">admin / admin</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detection window -->
+      <div class="brief-card" style="margin-bottom:16px">
+        <div class="brief-card-hdr green">&#128337; Detection Window</div>
+        <div class="brief-card-body">
+          <div style="display:flex;gap:32px;flex-wrap:wrap">
+            <div>
+              <div style="font-size:28px;font-weight:700;color:var(--nominal);font-family:'JetBrains Mono',monospace">600s</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px">IDS detection lag</div>
+            </div>
+            <div style="flex:1;min-width:200px">
+              <p style="font-size:12px;line-height:1.7;color:var(--text);margin:0 0 8px">
+                The IRS polls telemetry-db every 60 seconds. Anomalies are logged with a 10-minute delay to simulate real-world IDS batch analysis.
+              </p>
+              <p style="font-size:12px;line-height:1.7;color:var(--text);margin:0">
+                After triggering <strong>SAFING_MODE</strong> (IR-006), you have 10 minutes before the Incidents tab shows any alerts.
+                The imaging redirect (MC-MOC-5) is never logged.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Common Beginner Mistakes -->
+      <div class="brief-card">
+        <div class="brief-card-hdr amber">&#9888; Common Beginner Mistakes</div>
+        <div class="brief-card-body">
+          <div style="font-size:12px;line-height:1.8;color:var(--text)">
+            <p><strong>Trying to find a web vulnerability.</strong> This is protocol-level. The attack path is: WebSocket TLM sniff &rarr; GS TCP console &rarr; CCSDS UDP injection. Not XSS, not SQLi.</p>
+            <p><strong>Trying to reach satellites from the host OS directly.</strong> Satellites are on internal Docker networks (192.168.61.0/24). Use GS-BETA as the relay, or exec into the MOC container.</p>
+            <p><strong>Sending SAFING_MODE before capturing imagery.</strong> A satellite in SAFING_MODE has its imaging payload offline. Redirect and capture first, deny last.</p>
+            <p><strong>Forgetting to enable downlink before watching for mission data.</strong> The mission plan only appears in TLM after DOWNLINK_ENABLE + MISSION_DOWNLINK_ENABLE are sent.</p>
+            <p style="margin:0"><strong>Not confirming command execution.</strong> Watch the TLM stream after every command. The satellite echoes its new mode in the next telemetry frame.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
 
     <!-- ---- Dashboard ---- -->
     <div class="page active" id="page-dashboard">
