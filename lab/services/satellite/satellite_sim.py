@@ -394,6 +394,16 @@ FUNC_NAMES = {
     0x0A: "PAYLOAD_POWER_OFF",
 }
 
+# ---- Binary CCSDS TM payload format (32 bytes, big-endian) ----
+# I  mission_time_s  H  mode  H  bat_soc_pm  H  bat_mv  h  solar_ma
+# H  cpu_pm  H  mem_pm  h  lat_cdeg  h  lon_cdeg  H  alt_dm
+# h  temp_bat_cdeg  h  temp_xpdr_cdeg  B  flags  B  last_cmd_fc  H  cmd_count
+TLM_FMT  = ">IHHHhHHhhHhhBBH"
+TLM_SIZE = struct.calcsize(TLM_FMT)  # 32 bytes
+
+MODE_CODES          = {"NOMINAL": 0, "SAFE": 1, "CAMERA_ON": 2, "DOWNLINK_ACTIVE": 3, "REBOOT": 4}
+MISSION_APID_OFFSET = 0x100  # satellite APID + 0x100 = mission-data TM APID
+
 
 def execute_command(func_code: int, user_data: bytes, src_ip: str):
     """Execute a CCSDS command. NO source IP verification (intentional)."""
@@ -561,15 +571,63 @@ def orbital_loop():
                 state["contact_windows"] = windows
 
 
+def build_ccsds_tm(apid: int, seq_count: int, payload: bytes) -> bytes:
+    """Wrap payload in a CCSDS TM Space Packet primary header (6 bytes)."""
+    word0 = apid & 0x7FF              # Version=0, Type=0 (TM), SecHdr=0
+    word1 = (0b11 << 14) | (seq_count & 0x3FFF)
+    return struct.pack(">HHH", word0, word1, len(payload) - 1) + payload
+
+
+def build_tlm_payload() -> bytes:
+    """Pack current satellite state into the 32-byte binary TLM payload."""
+    with state_lock:
+        s = dict(state)
+    mode_c = MODE_CODES.get(s["mode"], 0)
+    flags  = (
+        (1 if s["eclipse"]            else 0) |
+        (2 if s["camera_enabled"]     else 0) |
+        (4 if s["downlink_enabled"]   else 0) |
+        (8 if s["memory_dump_active"] else 0)
+    )
+    last     = s["last_command"] or "NOP"
+    cmd_code = next((c for c, n in FUNC_NAMES.items() if n == last), 0)
+    clamp    = lambda v, lo, hi: int(max(lo, min(hi, v)))
+    return struct.pack(TLM_FMT,
+        int(s["uptime_s"]),
+        mode_c,
+        clamp(s["battery_soc"]      * 10,      0,     1000),
+        clamp(s["battery_v"]        * 1000,    0,    65535),
+        clamp(s["solar_current_a"]  * 1000, -32768,  32767),
+        clamp(s["cpu_load_pct"]     * 10,      0,     1000),
+        clamp(s["memory_used_pct"]  * 10,      0,     1000),
+        clamp(s["lat"]              * 100,  -9000,    9000),
+        clamp(s["lon"]              * 100, -18000,   18000),
+        clamp(s["alt_km"]           * 10,      0,    65535),
+        clamp(s["temp_battery_c"]   * 100, -32768,  32767),
+        clamp(s["temp_transponder_c"] * 100, -32768, 32767),
+        flags, cmd_code,
+        s["commands_received"] & 0xFFFF,
+    )
+
+
 def telemetry_loop():
-    """Send telemetry to MOC every second via UDP."""
+    """Send binary CCSDS TM packets to MOC once per real second via UDP."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    seq  = 0
     while True:
         time.sleep(1.0)
-        tlm = build_telemetry()
         try:
-            payload = json.dumps(tlm).encode("utf-8")
-            sock.sendto(payload, (TLM_HOST, TLM_PORT))
+            sock.sendto(build_ccsds_tm(APID, seq, build_tlm_payload()),
+                        (TLM_HOST, TLM_PORT))
+            # Mission data packet — sent only when DOWNLINK_ENABLE active (intentional data exposure)
+            with state_lock:
+                dl      = state["downlink_enabled"]
+                mission = dict(state["mission_plan"]) if dl else None
+            if mission:
+                m_payload = json.dumps(mission).encode("utf-8")
+                m_apid    = (APID + MISSION_APID_OFFSET) & 0x7FF
+                sock.sendto(build_ccsds_tm(m_apid, seq, m_payload), (TLM_HOST, TLM_PORT))
+            seq = (seq + 1) & 0x3FFF
         except Exception as e:
             print(f"[{SATELLITE_NAME}] TLM send error: {e}")
 

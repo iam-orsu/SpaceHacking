@@ -1,26 +1,35 @@
 version: "3.9"
 
-# SpaceVE-1 Realistic Space Agency Lab
+# SpaceVE-1 Space Systems Security Lab
 #
-# Three network segments (intentionally misconfigured for training):
-#   spacelab-cmd:   192.168.61.0/24  command uplink network
-#   spacelab-tlm:   192.168.62.0/24  telemetry downlink network
-#   spacelab-admin: 192.168.63.0/24  management/admin network
+# Architecture (Phase 2 — no Flask, no REST):
+#   Satellites  -> CCSDS binary TM -> MOC UDP :5000
+#   MOC         -> asyncio WebSocket :8765, HTTP :8080
+#   Operators   -> WS browser or nc -> GS TCP :4820 -> CCSDS UDP -> Satellites
 #
-# Constellation: 3 satellites in different orbital planes
-# Ground: 2 ground stations, primary MOC, backup MOC
-# Data: PostgreSQL telemetry database
-# Monitoring: Prometheus + Grafana, Incident Response system
+# Network segments:
+#   spacelab-cmd   192.168.61.0/24  command uplink  (GS, MOC cmd interface, satellites)
+#   spacelab-tlm   192.168.62.0/24  telemetry downlink (satellites TM -> MOC)
+#   spacelab-admin 192.168.63.0/24  management (DB, IRS, Prometheus, Grafana)
 #
-# Misconfigurations (intentional, training targets):
-#   1. Primary MOC on all 3 networks — should be segregated
-#   2. Telemetry DB on admin network — backup job "convenience"
-#   3. No enforced firewall between cmd and tlm
-#   4. Incident response on all 3 — compromise = total visibility
-#   5. Backup MOC uses same creds as primary
-#   6. Ground Station 2 in "maintenance mode" (unauthenticated)
+# Intentional misconfigurations (training targets, no CVEs):
+#   MC-GS-3   GS-BETA maintenance mode — no authentication
+#   MC-GS-4   GS CMD command — raw CCSDS hex relay, no validation
+#   MC-GS-5   Sequence counter replay window = full 14-bit range
+#   MC-MOC-1  MOC WebSocket telemetry readable without authentication
+#   MC-MOC-2  MD5 password hashing in operator DB
+#   MC-MOC-3  MOC on all 3 networks (no network segmentation)
+#   MC-SAT-1  Satellite CMD port has no source IP filtering
+#   MC-GRF-1  Grafana default credentials admin/admin
 #
-# Start: cd lab && bash scripts/setup_lab.sh
+# Attack chain:
+#   1. nmap localhost -> discover GS-BETA :4820 open, no auth banner
+#   2. nc localhost 4820 -> SENDCMD SpaceVE-1A DOWNLINK_ENABLE
+#   3. Subscribe to ws://localhost:8765 -> read CONFIDENTIAL mission data
+#   4. Replay captured CCSDS packets via CMD hex (large sequence window)
+#   5. SAFING_MODE -> mission operational impact
+#
+# Start: cd lab && docker compose up --build -d
 # Stop:  cd lab && docker compose down -v
 
 networks:
@@ -58,11 +67,10 @@ volumes:
 
 services:
 
-  # ----------------------------------------------------------------
-  # TELEMETRY DATABASE (PostgreSQL)
-  # Stores all mission data: telemetry, commands, operators, incidents
-  # Misconfiguration: accessible on admin network (should be tlm-only)
-  # ----------------------------------------------------------------
+  # ---------------------------------------------------------------
+  # TELEMETRY DATABASE
+  # Misconfiguration: on both tlm and admin networks
+  # ---------------------------------------------------------------
   telemetry-db:
     build: ./services/telemetry-db
     container_name: spaceve1-tlmdb
@@ -76,7 +84,7 @@ services:
     networks:
       spacelab-tlm:
         ipv4_address: 192.168.62.20
-      spacelab-admin:          # MISCONFIGURATION: DB on admin network
+      spacelab-admin:
         ipv4_address: 192.168.63.20
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U spaceops -d spaceve1"]
@@ -84,10 +92,10 @@ services:
       timeout: 5s
       retries: 5
 
-  # ----------------------------------------------------------------
-  # SATELLITE SIMULATORS (3 satellites, 3 orbital planes)
-  # All on command network only — satellites don't need admin access
-  # ----------------------------------------------------------------
+  # ---------------------------------------------------------------
+  # SATELLITES
+  # On both cmd (receive commands) and tlm (send TLM to MOC)
+  # ---------------------------------------------------------------
   satellite-1:
     build: ./services/satellite
     container_name: spaceve1-sat-a
@@ -106,9 +114,11 @@ services:
     networks:
       spacelab-cmd:
         ipv4_address: 192.168.61.100
+      spacelab-tlm:
+        ipv4_address: 192.168.62.100
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f satellite_sim.py || exit 1"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 3
 
@@ -130,9 +140,11 @@ services:
     networks:
       spacelab-cmd:
         ipv4_address: 192.168.61.101
+      spacelab-tlm:
+        ipv4_address: 192.168.62.101
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f satellite_sim.py || exit 1"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 3
 
@@ -154,17 +166,19 @@ services:
     networks:
       spacelab-cmd:
         ipv4_address: 192.168.61.102
+      spacelab-tlm:
+        ipv4_address: 192.168.62.102
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f satellite_sim.py || exit 1"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 3
 
-  # ----------------------------------------------------------------
+  # ---------------------------------------------------------------
   # GROUND STATIONS
-  # TCP command gateways that forward CCSDS to satellites
-  # GS-2 is in "maintenance mode" — unauthenticated (misconfiguration)
-  # ----------------------------------------------------------------
+  # TCP operator console, no Flask, plain socket server
+  # MC-GS-3: GS-BETA maintenance mode = no auth
+  # ---------------------------------------------------------------
   ground-station-1:
     build: ./services/ground-station
     container_name: spaceve1-gs1
@@ -173,11 +187,12 @@ services:
       GS_ID: "GS-ALPHA"
       GS_LAT: "28.5"
       GS_LON: "-80.5"
-      GS_USERNAME: "gsoperator"
       GS_PASSWORD: "gs_alpha_2024"
-      SATELLITE_IPS: "192.168.61.100,192.168.61.101,192.168.61.102"
       MAINTENANCE_MODE: "false"
-      MOC_HOST: "192.168.62.10"
+      LISTEN_PORT: "4820"
+      SAT_A_IP: "192.168.61.100"
+      SAT_B_IP: "192.168.61.101"
+      SAT_C_IP: "192.168.61.102"
     networks:
       spacelab-cmd:
         ipv4_address: 192.168.61.20
@@ -190,41 +205,48 @@ services:
       GS_ID: "GS-BETA"
       GS_LAT: "51.5"
       GS_LON: "-0.1"
-      GS_USERNAME: "gsoperator"
-      GS_PASSWORD: "gs_beta_2024"
-      SATELLITE_IPS: "192.168.61.100,192.168.61.101,192.168.61.102"
-      MAINTENANCE_MODE: "true"    # MISCONFIGURATION: maintenance mode = no auth
-      MOC_HOST: "192.168.62.10"
+      GS_PASSWORD: "password123"      # MC-GS-1: weak default credential
+      MAINTENANCE_MODE: "true"        # MC-GS-3: no auth required
+      LISTEN_PORT: "4820"
+      SAT_A_IP: "192.168.61.100"
+      SAT_B_IP: "192.168.61.101"
+      SAT_C_IP: "192.168.61.102"
+    ports:
+      - "4820:4820"                   # exposed — primary pentest entry point
     networks:
       spacelab-cmd:
         ipv4_address: 192.168.61.21
 
-  # ----------------------------------------------------------------
-  # PRIMARY MISSION OPERATIONS CENTER
-  # Misconfiguration: on all 3 networks (should be segmented)
-  # ----------------------------------------------------------------
-  primary-moc:
-    build: ./services/primary-moc
-    container_name: spaceve1-moc-primary
+  # ---------------------------------------------------------------
+  # MISSION OPERATIONS CENTER (asyncio, no Flask)
+  # Receives CCSDS TM via UDP, serves WebSocket + static HTTP
+  # Misconfiguration: on all 3 networks (MC-MOC-3)
+  # ---------------------------------------------------------------
+  moc:
+    build: ./services/moc
+    container_name: spaceve1-moc
     restart: unless-stopped
     depends_on:
       telemetry-db:
         condition: service_healthy
     environment:
       MOC_ID: "PRIMARY"
+      TLM_LISTEN_PORT: "5000"
+      WS_PORT: "8765"
+      HTTP_PORT: "8080"
       DB_HOST: "192.168.62.20"
       DB_PORT: "5432"
       DB_NAME: "spaceve1"
       DB_USER: "spaceops"
       DB_PASS: "spaceops2024"
-      SECRET_KEY: "spaceve1-weak-secret-key-2024"  # MISCONFIGURATION: hardcoded weak secret
-      TLM_LISTEN_PORT: "5000"
-      CMD_SAT_A: "192.168.61.100"
-      CMD_SAT_B: "192.168.61.101"
-      CMD_SAT_C: "192.168.61.102"
       GS1_HOST: "192.168.61.20"
+      GS1_PORT: "4820"
+      GS1_TOKEN: "gs_alpha_2024"
       GS2_HOST: "192.168.61.21"
-      FLASK_ENV: "production"
+      GS2_PORT: "4820"
+    ports:
+      - "8080:8080"   # browser dashboard
+      - "8765:8765"   # WebSocket (MC-MOC-1: no auth for TLM read)
     networks:
       spacelab-cmd:
         ipv4_address: 192.168.61.10
@@ -233,42 +255,16 @@ services:
       spacelab-admin:
         ipv4_address: 192.168.63.10
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:5000/api/health || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import socket; s=socket.socket(); s.connect(('0.0.0.0', 8080)); s.close()\" 2>/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
 
-  # ----------------------------------------------------------------
-  # BACKUP MOC
-  # Misconfiguration: same SECRET_KEY and DB creds as primary
-  # ----------------------------------------------------------------
-  backup-moc:
-    build: ./services/backup-moc
-    container_name: spaceve1-moc-backup
-    restart: unless-stopped
-    depends_on:
-      telemetry-db:
-        condition: service_healthy
-    environment:
-      MOC_ID: "BACKUP"
-      DB_HOST: "192.168.62.20"
-      DB_PORT: "5432"
-      DB_NAME: "spaceve1"
-      DB_USER: "spaceops"
-      DB_PASS: "spaceops2024"
-      SECRET_KEY: "spaceve1-weak-secret-key-2024"  # MISCONFIGURATION: same key as primary
-      PRIMARY_MOC: "192.168.63.10"
-    networks:
-      spacelab-cmd:
-        ipv4_address: 192.168.61.11
-      spacelab-admin:
-        ipv4_address: 192.168.63.11
-
-  # ----------------------------------------------------------------
+  # ---------------------------------------------------------------
   # INCIDENT RESPONSE SYSTEM
-  # Monitors all 3 networks for suspicious activity
-  # Misconfiguration: on all 3 networks — compromise it = total visibility
-  # ----------------------------------------------------------------
+  # Polls DB every 60s with 600s detection lag
+  # Misconfiguration: on all 3 networks
+  # ---------------------------------------------------------------
   incident-response:
     build: ./services/incident-response
     container_name: spaceve1-irs
@@ -282,10 +278,8 @@ services:
       DB_NAME: "spaceve1"
       DB_USER: "spaceops"
       DB_PASS: "spaceops2024"
-      MONITOR_CMD_NET: "192.168.61.0/24"
-      MONITOR_TLM_NET: "192.168.62.0/24"
-      MONITOR_ADM_NET: "192.168.63.0/24"
-      DETECTION_LAG_S: "600"    # MISCONFIGURATION: 10-minute detection lag
+      DETECTION_LAG_S: "600"
+      POLL_INTERVAL: "60"
     networks:
       spacelab-cmd:
         ipv4_address: 192.168.61.30
@@ -294,10 +288,9 @@ services:
       spacelab-admin:
         ipv4_address: 192.168.63.30
 
-  # ----------------------------------------------------------------
-  # PROMETHEUS (metrics collection)
-  # Admin network only
-  # ----------------------------------------------------------------
+  # ---------------------------------------------------------------
+  # PROMETHEUS
+  # ---------------------------------------------------------------
   prometheus:
     image: prom/prometheus:v2.51.0
     container_name: spaceve1-prometheus
@@ -312,20 +305,22 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=7d'
 
-  # ----------------------------------------------------------------
-  # GRAFANA (dashboards)
-  # Admin network only. Default creds: admin/admin (misconfiguration)
-  # ----------------------------------------------------------------
+  # ---------------------------------------------------------------
+  # GRAFANA
+  # MC-GRF-1: default credentials admin/admin
+  # ---------------------------------------------------------------
   grafana:
     image: grafana/grafana:10.4.0
     container_name: spaceve1-grafana
     restart: unless-stopped
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: "admin"   # MISCONFIGURATION: default Grafana password
-      GF_AUTH_ANONYMOUS_ENABLED: "true"     # MISCONFIGURATION: anonymous access
+      GF_SECURITY_ADMIN_PASSWORD: "admin"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
     volumes:
       - grafana-data:/var/lib/grafana
       - ./services/monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    ports:
+      - "3000:3000"
     networks:
       spacelab-admin:
         ipv4_address: 192.168.63.41

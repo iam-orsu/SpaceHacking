@@ -1,13 +1,5 @@
 FROM python:3.11-slim
-
 WORKDIR /app
-
-RUN pip install --no-cache-dir flask psycopg2-binary
-
-COPY gateway.py .
-COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh
-
-EXPOSE 9001
-
-CMD ["/app/entrypoint.sh"]
+COPY gs_server.py .
+EXPOSE 4820
+CMD ["python", "gs_server.py"]
