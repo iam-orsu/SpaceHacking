@@ -160,17 +160,17 @@ async def ws_handler(websocket):
                         "clearance": op["clearance"],
                     }))
                 else:
-                    await websocket.send(json.dumps({"type": "login_fail", "error": "Invalid credentials"}))
+                    await websocket.send(json.dumps({"type": "login_fail", "message": "Invalid credentials"}))
 
             elif mtype == "submit_cmd":
                 sess = sessions.get(websocket, {})
                 if not sess.get("username"):
-                    await websocket.send(json.dumps({"type": "error", "msg": "Authentication required"}))
+                    await websocket.send(json.dumps({"type": "error", "message": "Authentication required"}))
                     continue
                 sat_id    = msg.get("satellite_id", "SpaceVE-1A")
                 func_name = msg.get("func_name", "NOP").upper()
                 if func_name not in FUNC_CODES:
-                    await websocket.send(json.dumps({"type": "error", "msg": f"Unknown command: {func_name}"}))
+                    await websocket.send(json.dumps({"type": "error", "message": f"Unknown command: {func_name}"}))
                     continue
                 fc, level = FUNC_CODES[func_name]
                 operator  = sess["username"]
@@ -202,13 +202,8 @@ async def ws_handler(websocket):
                 })
 
             elif mtype == "list_cmds":
-                await websocket.send(json.dumps({
-                    "type": "cmd_list",
-                    "commands": [
-                        {"name": n, "fc": fc, "level": lvl}
-                        for n, (fc, lvl) in FUNC_CODES.items()
-                    ],
-                }))
+                cmds = await loop.run_in_executor(None, telemetry_store.get_recent_commands)
+                await websocket.send(json.dumps({"type": "recent_commands", "commands": cmds}, default=str))
 
     except websockets.exceptions.ConnectionClosed:
         pass

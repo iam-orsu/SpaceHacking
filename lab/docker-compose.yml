@@ -1,5 +1,3 @@
-version: "3.9"
-
 # SpaceVE-1 Space Systems Security Lab
 #
 # Architecture (Phase 2 — no Flask, no REST):

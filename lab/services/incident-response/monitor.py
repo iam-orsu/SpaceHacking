@@ -163,7 +163,7 @@ def run():
     while True:
         try:
             conn = get_conn()
-            window_start = datetime.utcnow() - timedelta(seconds=POLL_INTERVAL * 2)
+            window_start = datetime.now(timezone.utc) - timedelta(seconds=POLL_INTERVAL * 2)
             check_command_burst(conn, window_start)
             check_anomalous_func_codes(conn, window_start)
             check_downlink_camera_combo(conn, window_start)

@@ -1,5 +1,3 @@
-version: "3.9"
-
 # OrsuSpace Mission Operations Lab — Production Compose
 #
 # Key differences from docker-compose.yml (dev):
