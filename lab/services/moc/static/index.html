@@ -1002,7 +1002,7 @@ main {
       <div class="card">
         <div class="card-header">
           <div class="card-title">Orbital Track</div>
-          <div style="font-size:11px;color:var(--text-muted)">Ground track — current epoch</div>
+          <div style="font-size:11px;color:var(--text-muted)">Ground track, current epoch</div>
         </div>
         <div class="orbit-canvas"><canvas id="orbitCanvas"></canvas></div>
       </div>
@@ -1064,14 +1064,14 @@ main {
           <div class="form-field" style="margin-bottom:12px">
             <label>Function</label>
             <select id="cmdFunc">
-              <option value="NOP">NOP — No Operation (Level 1)</option>
-              <option value="CAMERA_ON">CAMERA_ON — Enable payload camera (Level 2)</option>
-              <option value="CAMERA_OFF">CAMERA_OFF — Disable payload camera (Level 2)</option>
-              <option value="DOWNLINK_ENABLE">DOWNLINK_ENABLE — Transmit mission data (Level 2)</option>
-              <option value="DOWNLINK_DISABLE">DOWNLINK_DISABLE — Stop mission data TX (Level 2)</option>
-              <option value="SAFING_MODE">SAFING_MODE — Enter safe hold (Level 3)</option>
-              <option value="REBOOT">REBOOT — Restart OBC (Level 3)</option>
-              <option value="MEMORY_DUMP">MEMORY_DUMP — Exfiltrate memory (Level 2)</option>
+              <option value="NOP">NOP: No operation</option>
+              <option value="CAMERA_ON">CAMERA_ON: Enable payload camera</option>
+              <option value="CAMERA_OFF">CAMERA_OFF: Disable payload camera</option>
+              <option value="DOWNLINK_ENABLE">DOWNLINK_ENABLE: Transmit mission data</option>
+              <option value="DOWNLINK_DISABLE">DOWNLINK_DISABLE: Stop mission data transmission</option>
+              <option value="SAFING_MODE">SAFING_MODE: Enter safe hold</option>
+              <option value="REBOOT">REBOOT: Restart on-board computer</option>
+              <option value="MEMORY_DUMP">MEMORY_DUMP: Dump OBC memory contents</option>
             </select>
           </div>
           <button class="btn btn-primary" onclick="submitCommand()" style="width:100%">Uplink Command</button>
@@ -1087,11 +1087,10 @@ main {
           </div>
           <div class="form-field" style="margin-bottom:12px">
             <label>Password</label>
-            <input type="password" id="cmdPassword" placeholder="ops123">
+            <input type="password" id="cmdPassword" placeholder="">
           </div>
           <button class="btn btn-primary" onclick="doLogin()" style="width:100%">Authenticate</button>
           <div id="loginMsg" style="margin-top:10px;font-size:12px;font-weight:600;color:var(--critical);min-height:16px;"></div>
-          <div style="margin-top:12px;font-size:11px;color:var(--text-muted)">Hint: password is stored as MD5. Default: ops123</div>
         </div>
       </div>
 
@@ -1137,27 +1136,27 @@ main {
         <div class="net-segment">
           <div class="net-seg-header" style="background:#fdf2f8;color:#7c3aed">MOC Services<span class="cidr">Exposed Ports</span></div>
           <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">Dashboard (HTTP)</span><span class="haddr">:8080</span></div>
-          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span><span class="hname">WebSocket TLM</span><span class="haddr">:8765 (no auth)</span><span class="htag attack">MC-MOC-1</span></div>
-          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span><span class="hname">GS-BETA TCP</span><span class="haddr">:4820 (maint mode)</span><span class="htag attack">MC-GS-3</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">WebSocket TLM</span><span class="haddr">:8765</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span><span class="hname">GS-BETA TCP</span><span class="haddr">:4820 (maintenance)</span></div>
         </div>
       </div>
 
-      <!-- Misconfigurations table -->
+      <!-- System configuration audit -->
       <div class="card">
-        <div class="card-header"><div class="card-title">Intentional Misconfigurations</div><div style="font-size:11px;color:var(--critical);font-weight:600">For training purposes only</div></div>
+        <div class="card-header"><div class="card-title">System Configuration Status</div><div style="font-size:11px;color:var(--text-muted)">Last audit: 2026-09-25 00:00 UTC</div></div>
         <table class="misc-table">
-          <thead><tr><th>ID</th><th>Component</th><th>Description</th><th>Impact</th></tr></thead>
+          <thead><tr><th>Component</th><th>Interface</th><th>Protocol</th><th>Status</th></tr></thead>
           <tbody>
-            <tr><td><span class="mc-id">MC-GS-1</span></td><td>GS-BETA</td><td>Default password "password123"</td><td>Credential brute force</td></tr>
-            <tr><td><span class="mc-id">MC-GS-2</span></td><td>All GS</td><td>No source IP filtering on TCP port 4820</td><td>Command injection from any host</td></tr>
-            <tr><td><span class="mc-id">MC-GS-3</span></td><td>GS-BETA</td><td>MAINTENANCE_MODE=true — auth bypassed</td><td>Unauthenticated command uplink</td></tr>
-            <tr><td><span class="mc-id">MC-GS-4</span></td><td>All GS</td><td>CMD &lt;sat&gt; &lt;hex&gt; relay without CCSDS validation</td><td>Arbitrary packet injection</td></tr>
-            <tr><td><span class="mc-id">MC-GS-5</span></td><td>All GS</td><td>Replay window = full 14-bit sequence range (0x3FFF)</td><td>CCSDS packet replay attack</td></tr>
-            <tr><td><span class="mc-id">MC-MOC-1</span></td><td>MOC WS</td><td>WebSocket TLM stream readable without auth</td><td>Passive intelligence gathering</td></tr>
-            <tr><td><span class="mc-id">MC-MOC-2</span></td><td>MOC DB</td><td>Passwords stored as MD5 (no bcrypt/Argon2)</td><td>Offline cracking after DB dump</td></tr>
-            <tr><td><span class="mc-id">MC-SAT-1</span></td><td>Satellites</td><td>No source IP verification on CMD port 1234</td><td>Direct satellite compromise</td></tr>
-            <tr><td><span class="mc-id">MC-SAT-2</span></td><td>Satellites</td><td>Mission plan transmitted in cleartext JSON (CCSDS payload)</td><td>Mission data exfiltration</td></tr>
-            <tr><td><span class="mc-id">MC-GRF-1</span></td><td>Grafana</td><td>Default credentials admin/admin</td><td>Monitoring system compromise</td></tr>
+            <tr><td>Ground Station ALPHA</td><td>TCP cmd console :4820</td><td>CCSDS TC v2</td><td><span style="color:var(--nominal);font-weight:600">NOMINAL</span></td></tr>
+            <tr><td>Ground Station BETA</td><td>TCP cmd console :4820</td><td>CCSDS TC v2</td><td><span style="color:#f59e0b;font-weight:600">MAINTENANCE</span></td></tr>
+            <tr><td>MOC Telemetry</td><td>WebSocket :8765</td><td>JSON / TLM</td><td><span style="color:var(--nominal);font-weight:600">ACTIVE</span></td></tr>
+            <tr><td>MOC Dashboard</td><td>HTTP :8080</td><td>REST / HTML</td><td><span style="color:var(--nominal);font-weight:600">ACTIVE</span></td></tr>
+            <tr><td>SpaceVE-1A CMD</td><td>UDP :1234</td><td>CCSDS TC v2</td><td><span style="color:var(--nominal);font-weight:600">NOMINAL</span></td></tr>
+            <tr><td>SpaceVE-1B CMD</td><td>UDP :1234</td><td>CCSDS TC v2</td><td><span style="color:var(--nominal);font-weight:600">NOMINAL</span></td></tr>
+            <tr><td>SpaceVE-1C CMD</td><td>UDP :1234</td><td>CCSDS TC v2</td><td><span style="color:var(--nominal);font-weight:600">NOMINAL</span></td></tr>
+            <tr><td>Telemetry Database</td><td>PostgreSQL :5432</td><td>TCP</td><td><span style="color:var(--nominal);font-weight:600">NOMINAL</span></td></tr>
+            <tr><td>Monitoring (Grafana)</td><td>HTTP :3000</td><td>HTTPS</td><td><span style="color:var(--nominal);font-weight:600">ACTIVE</span></td></tr>
+            <tr><td>Metrics (Prometheus)</td><td>HTTP :9090</td><td>HTTP</td><td><span style="color:var(--nominal);font-weight:600">ACTIVE</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -1166,7 +1165,7 @@ main {
     <!-- ---- Incidents ---- -->
     <div class="page" id="page-incidents">
       <div class="page-header">
-        <div><h1>Incident Response</h1><div class="sub">Alerts from the Intrusion Detection System &bull; 10-minute detection lag simulated</div></div>
+        <div><h1>Incident Response</h1><div class="sub">Automated incident detection and alerting &bull; Intrusion Detection System</div></div>
       </div>
       <div class="card">
         <div class="card-header"><div class="card-title">Active Incidents</div><div id="incidentCount" style="font-size:11px;color:var(--text-muted)"></div></div>
@@ -1211,11 +1210,10 @@ main {
     </div>
     <div class="form-field">
       <label>Password</label>
-      <input type="password" id="ovlPassword" placeholder="ops123" onkeydown="if(event.key==='Enter')doHttpLogin()">
+      <input type="password" id="ovlPassword" placeholder="" onkeydown="if(event.key==='Enter')doHttpLogin()">
     </div>
     <button class="login-btn" onclick="doHttpLogin()">Authenticate</button>
     <div class="login-err" id="ovlErr"></div>
-    <div class="login-hint">Hint: default password is ops123 (stored as MD5 — MC-MOC-2)</div>
   </div>
 </div>
 
@@ -1242,7 +1240,7 @@ function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const host  = location.hostname;
   const port  = 8765;
-  // MC-MOC-1b: token checked only at connect time, not per-message
+  // token checked only at connect time, not per-message
   const url = wsToken ? `${proto}://${host}:${port}?token=${wsToken}` : `${proto}://${host}:${port}`;
   ws = new WebSocket(url);
 
@@ -1298,7 +1296,7 @@ async function doHttpLogin() {
     hideLoginOverlay();
     connectWS();
   } catch (err) {
-    errEl.textContent = 'Network error — is the MOC reachable?';
+    errEl.textContent = 'Network error: MOC unreachable.';
   }
 }
 
@@ -1448,7 +1446,7 @@ function renderMissionAlert() {
     const entries = typeof data === 'object' ? Object.entries(data) : [['raw', JSON.stringify(data)]];
     const satHeader = document.createElement('div');
     satHeader.style.cssText = 'grid-column:1/-1;font-size:11px;font-weight:700;color:#92400e;padding:4px 0 2px;border-bottom:1px solid #fbbf24;margin-bottom:4px';
-    satHeader.textContent = sat + ' — Mission Plan';
+    satHeader.textContent = sat + ' - Mission Plan';
     grid.appendChild(satHeader);
     for (const [k, v] of entries) {
       const f = document.createElement('div');
@@ -1500,7 +1498,7 @@ function appendTlmRow(d) {
 function updateHexDump(satId, hex) {
   const el    = document.getElementById('hexDump');
   const label = document.getElementById('hexSatLabel');
-  label.textContent = satId + ' — latest packet';
+  label.textContent = satId + ' - latest packet';
   const clean = hex.replace(/\s/g,'');
   const rows  = [];
   for (let i = 0; i < clean.length; i += 32) {
