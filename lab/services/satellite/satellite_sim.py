@@ -25,7 +25,7 @@ Attack surface (intentional misconfigurations):
   - CCSDS checksum validates packet integrity but NOT authenticity
   - No source IP verification on command port
   - Any valid CCSDS packet from any host in 192.168.61.0/24 is executed
-  - Telemetry includes mission_plan data when downlink_enabled=True
+  - Mission data separate from health TLM — requires DOWNLINK_ENABLE + MISSION_DOWNLINK_ENABLE
 """
 
 import json
@@ -85,6 +85,7 @@ state = {
     # Payload
     "camera_enabled": False,
     "downlink_enabled": False,
+    "mission_downlink_enabled": False,
     "memory_dump_active": False,
     # Power
     "battery_v": 28.5,
@@ -390,8 +391,10 @@ FUNC_NAMES = {
     0x06: "REBOOT",
     0x07: "SAFING_MODE",
     0x08: "NOMINAL_MODE",
-    0x09: "ATTITUDE_SLEW",
+    0x09: "EMERGENCY_SAFING",
     0x0A: "PAYLOAD_POWER_OFF",
+    0x0B: "MISSION_DOWNLINK_ENABLE",
+    0x0C: "MISSION_DOWNLINK_DISABLE",
 }
 
 # ---- Binary CCSDS TM payload format (32 bytes, big-endian) ----
@@ -423,7 +426,7 @@ def execute_command(func_code: int, user_data: bytes, src_ip: str):
             state["power_consumption_w"] = max(45.0, state["power_consumption_w"] - 15.0)
         elif func_code == 0x03:  # DOWNLINK_ENABLE
             state["downlink_enabled"] = True
-            print(f"[{SATELLITE_NAME}] DOWNLINK ENABLED by {src_ip} — mission_plan now in telemetry!")
+            print(f"[{SATELLITE_NAME}] DOWNLINK ENABLED by {src_ip} — health telemetry active")
         elif func_code == 0x04:  # DOWNLINK_DISABLE
             state["downlink_enabled"] = False
         elif func_code == 0x05:  # MEMORY_DUMP
@@ -439,6 +442,7 @@ def execute_command(func_code: int, user_data: bytes, src_ip: str):
                     state["uptime_s"] = 0
                     state["camera_enabled"] = False
                     state["downlink_enabled"] = False
+                    state["mission_downlink_enabled"] = False
                     state["memory_dump_active"] = False
                     state["mode"] = "NOMINAL"
             threading.Thread(target=do_reboot, daemon=True).start()
@@ -446,15 +450,30 @@ def execute_command(func_code: int, user_data: bytes, src_ip: str):
             state["mode"] = "SAFE"
             state["camera_enabled"] = False
             state["downlink_enabled"] = False
+            state["mission_downlink_enabled"] = False
             state["power_consumption_w"] = 30.0
             print(f"[{SATELLITE_NAME}] SAFE MODE activated by {src_ip}")
+        elif func_code == 0x09:  # EMERGENCY_SAFING (requires SAFETY_OPS role in MOC)
+            state["mode"] = "SAFE"
+            state["camera_enabled"] = False
+            state["downlink_enabled"] = False
+            state["mission_downlink_enabled"] = False
+            state["memory_dump_active"] = False
+            state["power_consumption_w"] = 25.0
+            print(f"[{SATELLITE_NAME}] *** EMERGENCY SAFING triggered by {src_ip} ***")
         elif func_code == 0x08:  # NOMINAL_MODE
             state["mode"] = "NOMINAL"
             state["power_consumption_w"] = 45.0
         elif func_code == 0x0A:  # PAYLOAD_POWER_OFF
             state["camera_enabled"] = False
             state["downlink_enabled"] = False
+            state["mission_downlink_enabled"] = False
             state["power_consumption_w"] = 30.0
+        elif func_code == 0x0B:  # MISSION_DOWNLINK_ENABLE
+            state["mission_downlink_enabled"] = True
+            print(f"[{SATELLITE_NAME}] MISSION DOWNLINK ENABLED by {src_ip} — mission_plan now in TM stream!")
+        elif func_code == 0x0C:  # MISSION_DOWNLINK_DISABLE
+            state["mission_downlink_enabled"] = False
 
 
 def build_telemetry() -> dict:
@@ -516,10 +535,6 @@ def build_telemetry() -> dict:
         },
         "contact_windows": s["contact_windows"],
     }
-
-    # Mission plan only in telemetry when downlink enabled (intentional leak)
-    if s["downlink_enabled"]:
-        tlm["mission_plan"] = s["mission_plan"]
 
     return tlm
 
@@ -584,10 +599,11 @@ def build_tlm_payload() -> bytes:
         s = dict(state)
     mode_c = MODE_CODES.get(s["mode"], 0)
     flags  = (
-        (1 if s["eclipse"]            else 0) |
-        (2 if s["camera_enabled"]     else 0) |
-        (4 if s["downlink_enabled"]   else 0) |
-        (8 if s["memory_dump_active"] else 0)
+        (1  if s["eclipse"]                   else 0) |
+        (2  if s["camera_enabled"]            else 0) |
+        (4  if s["downlink_enabled"]          else 0) |
+        (8  if s["memory_dump_active"]        else 0) |
+        (16 if s["mission_downlink_enabled"]  else 0)
     )
     last     = s["last_command"] or "NOP"
     cmd_code = next((c for c, n in FUNC_NAMES.items() if n == last), 0)
@@ -619,10 +635,11 @@ def telemetry_loop():
         try:
             sock.sendto(build_ccsds_tm(APID, seq, build_tlm_payload()),
                         (TLM_HOST, TLM_PORT))
-            # Mission data packet — sent only when DOWNLINK_ENABLE active (intentional data exposure)
+            # Mission data packet — requires both DOWNLINK_ENABLE and MISSION_DOWNLINK_ENABLE
             with state_lock:
                 dl      = state["downlink_enabled"]
-                mission = dict(state["mission_plan"]) if dl else None
+                mdl     = state["mission_downlink_enabled"]
+                mission = dict(state["mission_plan"]) if (dl and mdl) else None
             if mission:
                 m_payload = json.dumps(mission).encode("utf-8")
                 m_apid    = (APID + MISSION_APID_OFFSET) & 0x7FF

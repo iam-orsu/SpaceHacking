@@ -456,6 +456,85 @@ main {
   .sat-pills { display: none; }
   main { padding: 14px; }
 }
+
+/* ------------------------------------------------------------------ Login overlay */
+#loginOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(11,61,145,.72);
+  z-index: 9000;
+  align-items: center;
+  justify-content: center;
+}
+#loginOverlay.visible { display: flex; }
+.login-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 36px 40px;
+  width: 360px;
+  box-shadow: 0 16px 48px rgba(0,0,0,.22);
+}
+.login-modal h2 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--nasa-blue);
+  margin-bottom: 4px;
+}
+.login-modal .login-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+.login-modal .form-field { margin-bottom: 14px; }
+.login-modal .form-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 6px;
+}
+.login-modal .form-field input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--surface-2);
+  color: var(--text);
+  outline: none;
+}
+.login-modal .form-field input:focus { border-color: var(--nasa-blue-lt); }
+.login-modal .login-btn {
+  width: 100%;
+  padding: 10px;
+  background: var(--nasa-blue);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.login-modal .login-btn:hover { background: var(--nasa-blue-lt); }
+.login-modal .login-err {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--critical);
+  min-height: 16px;
+}
+.login-modal .login-hint {
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
 </style>
 </head>
 <body>
@@ -722,6 +801,25 @@ main {
   </main>
 </div>
 
+<!-- ---------------------------------------------------------- Login overlay (FIX 3: WS auth) -->
+<div id="loginOverlay">
+  <div class="login-modal">
+    <h2>Operator Authentication</h2>
+    <p class="login-sub">MOC access requires valid operator credentials</p>
+    <div class="form-field">
+      <label>Username</label>
+      <input type="text" id="ovlUsername" placeholder="e.g. command.ops" autocomplete="off">
+    </div>
+    <div class="form-field">
+      <label>Password</label>
+      <input type="password" id="ovlPassword" placeholder="ops123" onkeydown="if(event.key==='Enter')doHttpLogin()">
+    </div>
+    <button class="login-btn" onclick="doHttpLogin()">Authenticate</button>
+    <div class="login-err" id="ovlErr"></div>
+    <div class="login-hint">Hint: default password is ops123 (stored as MD5 — MC-MOC-2)</div>
+  </div>
+</div>
+
 <script>
 // ------------------------------------------------------------------ State
 const SAT_IDS = ['SpaceVE-1A','SpaceVE-1B','SpaceVE-1C'];
@@ -737,26 +835,72 @@ const state = {
 };
 let ws = null;
 let lastHex = {};
+let wsToken = '';
+try { wsToken = sessionStorage.getItem('moc_token') || ''; } catch {}
 
 // ------------------------------------------------------------------ WS
 function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const host  = location.hostname;
   const port  = 8765;
-  ws = new WebSocket(`${proto}://${host}:${port}`);
+  // MC-MOC-1b: token checked only at connect time, not per-message
+  const url = wsToken ? `${proto}://${host}:${port}?token=${wsToken}` : `${proto}://${host}:${port}`;
+  ws = new WebSocket(url);
 
   ws.onopen = () => {
-    setWsDot('live', 'LIVE');
-    // subscribe passively — no auth needed (MC-MOC-1)
+    setWsDot('live', 'CONNECTING');
   };
   ws.onmessage = (e) => {
     try { handleMsg(JSON.parse(e.data)); } catch {}
   };
-  ws.onclose = () => {
+  ws.onclose = (ev) => {
     setWsDot('error', 'DISCONNECTED');
-    setTimeout(connectWS, 4000);
+    if (ev.code === 1008) {
+      // server rejected — bad or missing token
+      wsToken = '';
+      try { sessionStorage.removeItem('moc_token'); } catch {}
+      showLoginOverlay();
+    } else {
+      setTimeout(connectWS, 4000);
+    }
   };
   ws.onerror = () => setWsDot('error', 'ERROR');
+}
+
+// ------------------------------------------------------------------ Login overlay
+function showLoginOverlay() {
+  document.getElementById('loginOverlay').classList.add('visible');
+  document.getElementById('ovlErr').textContent = '';
+}
+
+function hideLoginOverlay() {
+  document.getElementById('loginOverlay').classList.remove('visible');
+}
+
+async function doHttpLogin() {
+  const u = document.getElementById('ovlUsername').value.trim();
+  const p = document.getElementById('ovlPassword').value;
+  const errEl = document.getElementById('ovlErr');
+  if (!u || !p) { errEl.textContent = 'Username and password required'; return; }
+  try {
+    const proto = location.protocol;
+    const host  = location.hostname;
+    const resp  = await fetch(`${proto}//${host}:8080/api/login`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: u, password: p}),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { errEl.textContent = data.error || 'Authentication failed'; return; }
+    wsToken = data.token;
+    try { sessionStorage.setItem('moc_token', wsToken); } catch {}
+    state.loggedIn = true;
+    state.authToken = wsToken;
+    hideLoginOverlay();
+    connectWS();
+  } catch (err) {
+    errEl.textContent = 'Network error — is the MOC reachable?';
+  }
 }
 
 function setWsDot(cls, text) {
@@ -784,9 +928,20 @@ function handleMsg(msg) {
       state.missionData[msg.satellite_id] = msg.payload;
       renderMissionAlert();
       break;
+    case 'connected':
+      setWsDot('live', 'LIVE');
+      if (msg.authenticated && msg.username) {
+        state.loggedIn = true;
+        document.getElementById('cmdAuthBanner').classList.remove('visible');
+        document.getElementById('loginMsg').style.color = 'var(--nominal)';
+        document.getElementById('loginMsg').textContent = 'Authenticated as ' + msg.username;
+      }
+      break;
     case 'login_ok':
       state.loggedIn = true;
       state.authToken = msg.token;
+      wsToken = msg.token;
+      try { sessionStorage.setItem('moc_token', wsToken); } catch {}
       document.getElementById('cmdAuthBanner').classList.remove('visible');
       document.getElementById('loginMsg').style.color = 'var(--nominal)';
       document.getElementById('loginMsg').textContent = 'Authenticated as ' + msg.username;
@@ -1135,7 +1290,11 @@ function showLogin()   { showPage('commands'); }
 
 // ------------------------------------------------------------------ Boot
 window.addEventListener('load', () => {
-  connectWS();
+  if (!wsToken) {
+    showLoginOverlay();
+  } else {
+    connectWS();
+  }
   setInterval(updateClocks, 1000);
   updateClocks();
   requestAnimationFrame(drawOrbit);

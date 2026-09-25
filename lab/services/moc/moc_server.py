@@ -19,8 +19,10 @@ import hashlib
 import json
 import logging
 import os
+import secrets
 import struct
 import time
+from urllib.parse import urlparse, parse_qs
 
 import websockets
 from aiohttp import web
@@ -45,23 +47,39 @@ APID_TO_SAT = {0x200: "SpaceVE-1A", 0x201: "SpaceVE-1B", 0x202: "SpaceVE-1C"}
 SAT_TO_APID = {v: k for k, v in APID_TO_SAT.items()}
 
 FUNC_CODES = {
-    "NOP":              (0x00, 1),
-    "CAMERA_ON":        (0x01, 2),
-    "CAMERA_OFF":       (0x02, 2),
-    "DOWNLINK_ENABLE":  (0x03, 2),
-    "DOWNLINK_DISABLE": (0x04, 2),
-    "MEMORY_DUMP":      (0x05, 2),
-    "REBOOT":           (0x06, 3),
-    "SAFING_MODE":      (0x07, 3),
-    "NOMINAL_MODE":     (0x08, 1),
-    "PAYLOAD_POWER_OFF":(0x0A, 3),
+    "NOP":                     (0x00, 1),
+    "CAMERA_ON":               (0x01, 2),
+    "CAMERA_OFF":              (0x02, 2),
+    "DOWNLINK_ENABLE":         (0x03, 2),
+    "DOWNLINK_DISABLE":        (0x04, 2),
+    "MEMORY_DUMP":             (0x05, 2),
+    "REBOOT":                  (0x06, 3),
+    "SAFING_MODE":             (0x07, 3),
+    "NOMINAL_MODE":            (0x08, 1),
+    "EMERGENCY_SAFING":        (0x09, 3),
+    "PAYLOAD_POWER_OFF":       (0x0A, 3),
+    "MISSION_DOWNLINK_ENABLE": (0x0B, 2),
+    "MISSION_DOWNLINK_DISABLE":(0x0C, 2),
 }
 
-sat_state: dict = {}
-ws_clients: set = set()
-sessions: dict  = {}
-_cmd_seq: int   = 0
-_start_ts       = time.time()
+sat_state: dict  = {}
+ws_clients: set  = set()
+sessions: dict   = {}
+ws_tokens: dict  = {}  # token -> {username, role, clearance, ts}
+_cmd_seq: int    = 0
+_start_ts        = time.time()
+
+ROLE_PERMS = {
+    "TELEMETRY_OPS": {"read_tlm", "read_history"},
+    "COMMAND_OPS":   {"read_tlm", "send_command", "approve_command"},
+    "PAYLOAD_OPS":   {"read_tlm", "send_command", "payload_control"},
+    "SAFETY_OPS":    {"read_tlm", "send_command", "approve_command", "emergency_safing"},
+    "ADMIN":         {"*"},
+}
+
+def has_perm(role: str, perm: str) -> bool:
+    perms = ROLE_PERMS.get(role, set())
+    return "*" in perms or perm in perms
 
 
 def build_ccsds_tc(apid: int, fc: int) -> bytes:
@@ -121,16 +139,25 @@ async def broadcast(msg: dict):
 
 
 async def ws_handler(websocket):
+    # MC-MOC-1b: token checked only at connection time, not per-message
+    parsed = urlparse(websocket.request.path)
+    token  = parse_qs(parsed.query).get("token", [None])[0]
+    if not token or token not in ws_tokens:
+        reason = "Authentication required" if not token else "Invalid token"
+        await websocket.close(code=1008, reason=reason)
+        return
+
+    td = ws_tokens[token]
     ws_clients.add(websocket)
-    sessions[websocket] = {"username": None, "role": None}
+    sessions[websocket] = {"username": td["username"], "role": td["role"], "clearance": td["clearance"]}
     loop = asyncio.get_event_loop()
 
-    # Send current snapshot — NO AUTH REQUIRED (MC-MOC-1)
     for tlm in sat_state.values():
         await websocket.send(json.dumps({"type": "tlm_update", **tlm}, default=str))
     await websocket.send(json.dumps({
         "type": "connected", "moc_id": MOC_ID,
-        "ts": time.time(), "authenticated": False
+        "ts": time.time(), "authenticated": True,
+        "username": td["username"], "role": td["role"],
     }))
 
     try:
@@ -153,11 +180,18 @@ async def ws_handler(websocket):
                         None, telemetry_store.log_audit,
                         op["username"], "WS_LOGIN", "websocket"
                     )
+                    new_tok = secrets.token_hex(16)
+                    ws_tokens[new_tok] = {
+                        "username": op["username"], "role": op["role"],
+                        "clearance": op["clearance"], "ts": time.time(),
+                    }
+                    sessions[websocket] = {"username": op["username"], "role": op["role"], "clearance": op["clearance"]}
                     await websocket.send(json.dumps({
                         "type": "login_ok",
                         "username": op["username"],
                         "role": op["role"],
                         "clearance": op["clearance"],
+                        "token": new_tok,
                     }))
                 else:
                     await websocket.send(json.dumps({"type": "login_fail", "message": "Invalid credentials"}))
@@ -167,10 +201,18 @@ async def ws_handler(websocket):
                 if not sess.get("username"):
                     await websocket.send(json.dumps({"type": "error", "message": "Authentication required"}))
                     continue
+                if not has_perm(sess.get("role", ""), "send_command"):
+                    log.warning("RBAC DENY: %s (role=%s) send_command", sess["username"], sess.get("role"))
+                    await websocket.send(json.dumps({"type": "error", "message": "Permission denied: your role cannot send commands"}))
+                    continue
                 sat_id    = msg.get("satellite_id", "SpaceVE-1A")
                 func_name = msg.get("func_name", "NOP").upper()
                 if func_name not in FUNC_CODES:
                     await websocket.send(json.dumps({"type": "error", "message": f"Unknown command: {func_name}"}))
+                    continue
+                if func_name == "EMERGENCY_SAFING" and not has_perm(sess.get("role", ""), "emergency_safing"):
+                    log.warning("RBAC DENY: %s (role=%s) emergency_safing", sess["username"], sess.get("role"))
+                    await websocket.send(json.dumps({"type": "error", "message": "Permission denied: EMERGENCY_SAFING requires SAFETY_OPS or ADMIN role"}))
                     continue
                 fc, level = FUNC_CODES[func_name]
                 operator  = sess["username"]
@@ -202,6 +244,11 @@ async def ws_handler(websocket):
                 })
 
             elif mtype == "list_cmds":
+                sess = sessions.get(websocket, {})
+                if not has_perm(sess.get("role", ""), "read_history"):
+                    log.warning("RBAC DENY: %s (role=%s) read_history", sess.get("username"), sess.get("role"))
+                    await websocket.send(json.dumps({"type": "error", "message": "Permission denied: your role cannot read command history"}))
+                    continue
                 cmds = await loop.run_in_executor(None, telemetry_store.get_recent_commands)
                 await websocket.send(json.dumps({"type": "recent_commands", "commands": cmds}, default=str))
 
@@ -258,6 +305,44 @@ async def http_status(request):
     )
 
 
+async def http_login(request):
+    """POST /api/login — issues a WS auth token. Passwords stored as MD5 (MC-MOC-2)."""
+    try:
+        data = await request.json()
+    except Exception:
+        return web.Response(status=400, content_type="application/json",
+                            text='{"error":"bad request"}')
+    username = data.get("username", "")
+    password = data.get("password", "")
+    if not username or not password:
+        return web.Response(status=400, content_type="application/json",
+                            text='{"error":"username and password required"}')
+    pwd_md5 = hashlib.md5(password.encode()).hexdigest()
+    loop    = asyncio.get_event_loop()
+    op      = await loop.run_in_executor(None, telemetry_store.get_operator, username, pwd_md5)
+    if not op:
+        return web.Response(status=401, content_type="application/json",
+                            text='{"error":"Invalid credentials"}')
+    token = secrets.token_hex(16)
+    ws_tokens[token] = {
+        "username": op["username"], "role": op["role"],
+        "clearance": op["clearance"], "ts": time.time(),
+    }
+    await loop.run_in_executor(None, telemetry_store.log_audit,
+                               op["username"], "HTTP_LOGIN", "api")
+    log.info("HTTP login: %s (role=%s)", op["username"], op["role"])
+    return web.Response(
+        content_type="application/json",
+        headers={"Access-Control-Allow-Origin": "*"},
+        text=json.dumps({
+            "token": token,
+            "username": op["username"],
+            "role": op["role"],
+            "clearance": op["clearance"],
+        }),
+    )
+
+
 async def http_index(request):
     static = os.path.join(os.path.dirname(__file__), "static", "index.html")
     return web.FileResponse(static)
@@ -268,6 +353,7 @@ async def start_http(port):
     app.router.add_get("/",            http_index)
     app.router.add_get("/index.html",  http_index)
     app.router.add_get("/status",      http_status)
+    app.router.add_post("/api/login",  http_login)
     runner = web.AppRunner(app)
     await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", port).start()

@@ -324,3 +324,25 @@ services:
         ipv4_address: 192.168.63.41
     depends_on:
       - prometheus
+
+  # ---------------------------------------------------------------
+  # NETWORK ENFORCER
+  # Documents MC-MOC-3: MOC spans all 3 networks (segmentation violation)
+  # iptables rules here show INTENT; MOC's multi-homed presence defeats them
+  # ---------------------------------------------------------------
+  network-enforcer:
+    image: ubuntu:22.04
+    container_name: spaceve1-netfirewall
+    restart: "no"
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./scripts/enforce_networks.sh:/enforce_networks.sh:ro
+    command: bash /enforce_networks.sh
+    networks:
+      spacelab-cmd:
+        ipv4_address: 192.168.61.50
+      spacelab-tlm:
+        ipv4_address: 192.168.62.50
+      spacelab-admin:
+        ipv4_address: 192.168.63.50
