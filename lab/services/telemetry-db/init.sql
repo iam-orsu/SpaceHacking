@@ -24,10 +24,10 @@ CREATE TABLE IF NOT EXISTS operators (
 INSERT INTO operators (username, password_md5, role, clearance, full_name, email)
 VALUES
   ('admin',        md5('admin123'),  'ADMIN',         'TOP_SECRET', 'System Administrator',      'admin@orsu.space'),
-  ('telemetry.ops', md5('ops123'),   'TELEMETRY_OPS', 'SECRET',     'Dr.Vamsi Krishna',          'vamsi@orsu.space'),
-  ('command.ops',  md5('ops123'),    'COMMAND_OPS',   'SECRET',     'DCapt.Archana',             'archana@orsu.space'),
-  ('payload.ops',  md5('ops123'),    'PAYLOAD_OPS',   'SECRET',     'Dr.Sahithya',               'sahithya@orsu.space'),
-  ('safety.ops',   md5('ops123'),    'SAFETY_OPS',    'TOP_SECRET', 'Cmdr.Srinivas',             'srinivas@orsu.space'),
+  ('telemetry.ops', md5('ops123'),   'TELEMETRY_OPS', 'SECRET',     'Dr. Vamsi Krishna',         'vamsi@orsu.space'),
+  ('command.ops',  md5('ops123'),    'COMMAND_OPS',   'SECRET',     'Capt. Archana',             'archana@orsu.space'),
+  ('payload.ops',  md5('ops123'),    'PAYLOAD_OPS',   'SECRET',     'Dr. Sahithya',              'sahithya@orsu.space'),
+  ('safety.ops',   md5('ops123'),    'SAFETY_OPS',    'TOP_SECRET', 'Cmdr. Srinivas',            'srinivas@orsu.space'),
   ('backup.ops',   md5('ops123'),    'COMMAND_OPS',   'SECRET',     'Backup Operator',           'backup@orsu.space')
 ON CONFLICT (username) DO NOTHING;
 
