@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SpaceVE-1 MOC Dashboard</title>
+  <meta http-equiv="refresh" content="5">
+  <style>
+    body { font-family: monospace; background: #0a0a0a; color: #00ff41; margin: 0; padding: 20px; }
+    nav { display: flex; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid #222; padding-bottom: 10px; }
+    nav a { color: #00ff41; text-decoration: none; }
+    nav a:hover { color: #fff; }
+    .logout { margin-left: auto; color: #888; }
+    h2 { color: #aaa; font-size: 0.9em; letter-spacing: 3px; margin-bottom: 10px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .card { border: 1px solid #222; padding: 15px; }
+    .card h3 { margin: 0 0 10px; font-size: 0.8em; color: #555; letter-spacing: 2px; }
+    .val { font-size: 1.6em; color: #00ff41; }
+    .val.warn { color: #ffaa00; }
+    .val.ok { color: #00ff41; }
+    .val.crit { color: #ff4444; }
+    .status { font-size: 0.8em; color: #555; margin-top: 4px; }
+    .tlm-raw { border: 1px solid #222; padding: 15px; }
+    .tlm-raw pre { margin: 0; font-size: 0.8em; color: #666; white-space: pre-wrap; }
+    .mission-data { border: 1px solid #ff4444; padding: 15px; margin-top: 20px; }
+    .mission-data h3 { color: #ff4444; margin: 0 0 10px; font-size: 0.8em; }
+    .mission-data pre { color: #ffaa00; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/">DASHBOARD</a>
+    <a href="/command">COMMAND</a>
+    <a href="/logs">LOGS</a>
+    <span class="logout">{{ user }} | <a href="/logout" style="color:#555">LOGOUT</a></span>
+  </nav>
+
+  <h2>SPACEVE-1 // LIVE TELEMETRY // {{ tlm.get('_received_at', 'NO DATA')[:19] }} UTC</h2>
+
+  <div class="grid">
+    <div class="card">
+      <h3>MODE</h3>
+      <div class="val ok">{{ tlm.get('mode', 'UNKNOWN') }}</div>
+      <div class="status">Uptime: {{ tlm.get('uptime_s', 0) }}s</div>
+    </div>
+    <div class="card">
+      <h3>BATTERY</h3>
+      <div class="val {% if tlm.get('battery_pct', 100) < 20 %}crit{% elif tlm.get('battery_pct', 100) < 40 %}warn{% else %}ok{% endif %}">
+        {{ tlm.get('battery_pct', '?') }}%
+      </div>
+      <div class="status">Solar: {{ tlm.get('solar_power_w', '?') }} W</div>
+    </div>
+    <div class="card">
+      <h3>ORBIT</h3>
+      <div class="val ok">{{ tlm.get('orbit_alt_km', '?') }} km</div>
+      <div class="status">LEO nominal</div>
+    </div>
+    <div class="card">
+      <h3>ATTITUDE</h3>
+      {% if tlm.get('attitude') %}
+      <div class="val ok" style="font-size:1em">
+        Y {{ tlm.attitude.yaw_deg|round(1) }}°
+        P {{ tlm.attitude.pitch_deg|round(1) }}°
+        R {{ tlm.attitude.roll_deg|round(1) }}°
+      </div>
+      {% else %}
+      <div class="val">NO DATA</div>
+      {% endif %}
+    </div>
+    <div class="card">
+      <h3>CAMERA</h3>
+      <div class="val {% if tlm.get('camera_enabled') %}ok{% else %}warn{% endif %}">
+        {% if tlm.get('camera_enabled') %}ENABLED{% else %}DISABLED{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <h3>COMMANDS</h3>
+      <div class="val ok">{{ tlm.get('cmd_count', 0) }}</div>
+      <div class="status">Errors: {{ tlm.get('cmd_err_count', 0) }}</div>
+    </div>
+  </div>
+
+  {% if tlm.get('mission_plan') %}
+  <div class="mission-data">
+    <h3>MISSION PLANNING DATA — DOWNLINK ENABLED — CLEARTEXT</h3>
+    <pre>{{ tlm.mission_plan | tojson(indent=2) }}</pre>
+  </div>
+  {% endif %}
+
+  <div class="tlm-raw">
+    <h3 style="color:#333;font-size:0.8em;letter-spacing:2px;margin:0 0 10px">RAW TELEMETRY</h3>
+    <pre>{{ tlm | tojson(indent=2) }}</pre>
+  </div>
+</body>
+</html>

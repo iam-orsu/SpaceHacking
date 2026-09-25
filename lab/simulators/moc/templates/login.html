@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SpaceVE-1 MOC Login</title>
+  <style>
+    body { font-family: monospace; background: #0a0a0a; color: #00ff41; margin: 0; }
+    .container { max-width: 400px; margin: 100px auto; padding: 20px; border: 1px solid #00ff41; }
+    h1 { font-size: 1.2em; text-align: center; letter-spacing: 4px; }
+    .subtitle { text-align: center; color: #888; font-size: 0.8em; margin-bottom: 30px; }
+    input { width: 100%; padding: 8px; background: #111; color: #00ff41;
+            border: 1px solid #333; font-family: monospace; box-sizing: border-box; margin: 4px 0 12px; }
+    button { width: 100%; padding: 10px; background: #00ff41; color: #000;
+             border: none; font-family: monospace; cursor: pointer; font-weight: bold; }
+    .error { color: #ff4444; margin-bottom: 10px; }
+    label { font-size: 0.85em; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SPACEVE-1 MOC</h1>
+    <div class="subtitle">Mission Operations Center // spacesys.local</div>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="POST">
+      <label>USERNAME</label>
+      <input type="text" name="username" autocomplete="off">
+      <label>PASSWORD</label>
+      <input type="password" name="password">
+      <button type="submit">LOGIN</button>
+    </form>
+  </div>
+</body>
+</html>

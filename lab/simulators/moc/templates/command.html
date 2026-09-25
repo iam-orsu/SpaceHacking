@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SpaceVE-1 MOC Command</title>
+  <style>
+    body { font-family: monospace; background: #0a0a0a; color: #00ff41; margin: 0; padding: 20px; }
+    nav { display: flex; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid #222; padding-bottom: 10px; }
+    nav a { color: #00ff41; text-decoration: none; }
+    .logout { margin-left: auto; color: #888; }
+    h2 { color: #aaa; font-size: 0.9em; letter-spacing: 3px; margin-bottom: 20px; }
+    .cmd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 700px; }
+    .cmd-btn { padding: 12px; background: #111; border: 1px solid #333; color: #00ff41;
+               font-family: monospace; cursor: pointer; text-align: left; }
+    .cmd-btn:hover { border-color: #00ff41; background: #1a1a1a; }
+    .cmd-btn.danger { border-color: #ff4444; color: #ff4444; }
+    .cmd-btn.danger:hover { background: #1a0000; }
+    .result { margin-top: 20px; border: 1px solid #222; padding: 15px; max-width: 700px; }
+    .result.ok { border-color: #00ff41; }
+    .result.fail { border-color: #ff4444; }
+    .result pre { color: #aaa; font-size: 0.85em; margin: 0; }
+    .section { margin-bottom: 30px; }
+    .note { color: #444; font-size: 0.8em; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/">DASHBOARD</a>
+    <a href="/command">COMMAND</a>
+    <a href="/logs">LOGS</a>
+    <span class="logout">{{ user }} | <a href="/logout" style="color:#555">LOGOUT</a></span>
+  </nav>
+
+  <h2>SPACEVE-1 // COMMAND INTERFACE</h2>
+
+  <div class="section">
+    <div class="note">Source IP: {{ request.remote_addr }} — no verification performed</div>
+    <form method="POST">
+      <div class="cmd-grid">
+        <button class="cmd-btn" name="command" value="CAMERA_ENABLE">CAMERA_ENABLE</button>
+        <button class="cmd-btn" name="command" value="CAMERA_DISABLE">CAMERA_DISABLE</button>
+        <button class="cmd-btn" name="command" value="DOWNLINK_ENABLE">DOWNLINK_ENABLE</button>
+        <button class="cmd-btn" name="command" value="DOWNLINK_DISABLE">DOWNLINK_DISABLE</button>
+        <button class="cmd-btn" name="command" value="SAMPLE_NOP">SAMPLE_NOP</button>
+        <button class="cmd-btn" name="command" value="ES_NOP">ES_NOP</button>
+        <button class="cmd-btn danger" name="command" value="MEMORY_DUMP_ALL">MEMORY_DUMP_ALL</button>
+        <button class="cmd-btn danger" name="command" value="ES_RESTART_APP">ES_RESTART_APP</button>
+      </div>
+    </form>
+  </div>
+
+  {% if result %}
+  <div class="result {% if result.success %}ok{% else %}fail{% endif %}">
+    <pre>{{ result | tojson(indent=2) }}</pre>
+  </div>
+  {% endif %}
+</body>
+</html>
