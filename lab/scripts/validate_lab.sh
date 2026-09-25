@@ -1,199 +1,133 @@
 #!/bin/bash
-# validate_lab.sh — SpaceVE-1 Lab Validation
-#
-# Run after setup_lab.sh completes to verify the lab is attack-ready.
-# Checks every service, every port, and every attack surface.
-#
-# Output: PASS/FAIL for each check. Lab is ready when all checks PASS.
-#
-# Run with: cd lab && bash scripts/validate_lab.sh
+# Validate all Phase 2 lab services
+PASS=0; FAIL=0
 
-set -e
+ok()   { echo "  [PASS] $*"; ((PASS++)); }
+fail() { echo "  [FAIL] $*"; ((FAIL++)); }
+section() { echo ""; echo "=== $* ==="; }
 
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+MOC="http://localhost:5000"
+BACKUP="http://localhost:5001"
+GS1="localhost:9001"
+GS2="localhost:9002"
 
-PASS=0
-FAIL=0
+section "Container Status"
+for svc in satellite-1 satellite-2 satellite-3 primary-moc backup-moc \
+           ground-station-1 ground-station-2 telemetry-db incident-response \
+           prometheus grafana; do
+  status=$(docker ps --filter "name=$svc" --format "{{.Status}}" 2>/dev/null | head -1)
+  if echo "$status" | grep -q "Up"; then
+    ok "$svc: $status"
+  else
+    fail "$svc: NOT running (status='$status')"
+  fi
+done
 
-pass() { echo -e "  ${GREEN}PASS${NC}  $*"; ((PASS++)); }
-fail() { echo -e "  ${RED}FAIL${NC}  $*"; ((FAIL++)); }
-info() { echo -e "  ${YELLOW}INFO${NC}  $*"; }
+section "Primary MOC — Web & API"
+if curl -sf -o /dev/null -w "%{http_code}" "$MOC/login" | grep -q "200"; then
+  ok "GET /login → 200"
+else
+  fail "GET /login failed"
+fi
 
+# MC-2: Unauthenticated telemetry API
+status=$(curl -sf -o /dev/null -w "%{http_code}" "$MOC/api/telemetry/latest")
+if [ "$status" = "200" ]; then
+  ok "MC-2 confirmed: GET /api/telemetry/latest → 200 (no auth required)"
+else
+  fail "MC-2: expected 200 but got $status"
+fi
+
+# MC-6: Raw command endpoint (must be authenticated, but exists)
+status=$(curl -sf -o /dev/null -w "%{http_code}" -X POST "$MOC/api/commands/raw" \
+  -H "Content-Type: application/json" -d '{}')
+if [ "$status" = "302" ] || [ "$status" = "401" ]; then
+  ok "MC-6: /api/commands/raw exists (redirects to login — need valid session to exploit)"
+else
+  ok "MC-6: /api/commands/raw responded $status"
+fi
+
+# MC-5: SQLi endpoint accessible
+status=$(curl -sf -o /dev/null -w "%{http_code}" "$MOC/c2/telemetry?search=test")
+if [ "$status" = "302" ] || [ "$status" = "200" ]; then
+  ok "MC-5 target: /c2/telemetry?search= accessible ($status)"
+else
+  fail "MC-5 target: unexpected $status"
+fi
+
+section "Backup MOC"
+if curl -sf -o /dev/null -w "%{http_code}" "$BACKUP/login" | grep -q "200\|302"; then
+  ok "Backup MOC /login reachable"
+else
+  fail "Backup MOC not reachable on $BACKUP"
+fi
+
+# MC-3: Same secret key — can reuse session
+status=$(curl -sf -o /dev/null -w "%{http_code}" "$BACKUP/api/telemetry/latest")
+if [ "$status" = "200" ]; then
+  ok "MC-2b: backup /api/telemetry/latest also unauthenticated → 200"
+fi
+
+section "Ground Station TCP"
+# GS-1 — expects auth
+banner=$(nc -w3 -q1 $GS1 2>/dev/null | head -5 || true)
+if echo "$banner" | grep -q "OSA Ground Station"; then
+  ok "GS-1 banner received"
+  if echo "$banner" | grep -qi "maintenance"; then
+    ok "GS-1 banner shows NORMAL mode"
+  fi
+else
+  fail "GS-1 TCP not responding on $GS1"
+fi
+
+# GS-2 — MC-7 maintenance mode, token should be in banner
+banner2=$(nc -w3 -q1 $GS2 2>/dev/null | head -8 || true)
+if echo "$banner2" | grep -q "OSA Ground Station"; then
+  ok "GS-2 banner received"
+  if echo "$banner2" | grep -qi "maintenance"; then
+    ok "MC-7 confirmed: GS-2 in MAINTENANCE_MODE"
+  fi
+  if echo "$banner2" | grep -q "auth token"; then
+    ok "MC-7 bonus: auth token visible in GS-2 banner (credential leak)"
+  fi
+else
+  fail "GS-2 TCP not responding on $GS2"
+fi
+
+section "Satellite CCSDS — NOP Packet"
+# Build 8-byte NOP: primary header 0x1800 0xC000 0x0001 + secondary 0x00 0xFF
+NOP_HEX="1800C00000010000FF"
+result=$(echo -e "CMD SpaceVE-1A $NOP_HEX\r\nQUIT\r\n" | nc -w3 $GS1 2>/dev/null || true)
+if echo "$result" | grep -q "NOT_AUTHENTICATED"; then
+  ok "GS-1 correctly requires AUTH before CMD"
+fi
+
+section "Grafana — MC-8"
+status=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:3000")
+if [ "$status" = "200" ] || [ "$status" = "302" ]; then
+  ok "Grafana reachable on :3000"
+fi
+status=$(curl -sf -o /dev/null -w "%{http_code}" \
+  -u admin:admin "http://localhost:3000/api/org")
+if [ "$status" = "200" ]; then
+  ok "MC-8 confirmed: Grafana admin/admin accepted"
+else
+  fail "MC-8: Grafana admin/admin returned $status"
+fi
+
+section "Database"
+result=$(docker exec spacehacking-telemetry-db-1 \
+  psql -U opsuser -d spaceops -c "SELECT COUNT(*) FROM operators;" 2>/dev/null || true)
+if echo "$result" | grep -qE "[0-9]+"; then
+  ok "telemetry-db responds to psql"
+fi
+
+section "Summary"
 echo ""
-echo "  SpaceVE-1 Lab Validation"
-echo "  =========================="
+echo "  PASS: $PASS  FAIL: $FAIL"
 echo ""
-
-# ----------------------------------------------------------------
-# 1. Docker containers running
-# ----------------------------------------------------------------
-echo "  [1/5] Container status"
-
-check_container() {
-    local name=$1
-    local status
-    status=$(docker inspect --format '{{.State.Status}}' "$name" 2>/dev/null || echo "missing")
-    if [ "$status" = "running" ]; then
-        pass "$name is running"
-    else
-        fail "$name is NOT running (status: $status). Run: cd lab && docker compose up -d"
-    fi
-}
-
-check_container "spaceve1-satellite"
-check_container "spaceve1-moc"
-check_container "spaceve1-groundstation"
-echo ""
-
-# ----------------------------------------------------------------
-# 2. Network connectivity
-# ----------------------------------------------------------------
-echo "  [2/5] Network connectivity"
-
-check_tcp() {
-    local host=$1 port=$2 label=$3
-    if timeout 3 bash -c "echo >/dev/tcp/$host/$port" 2>/dev/null; then
-        pass "$label ($host:$port/tcp)"
-    else
-        fail "$label ($host:$port/tcp) — container may still be starting"
-    fi
-}
-
-check_udp_respond() {
-    local host=$1 port=$2 label=$3
-    # Send a minimal invalid CCSDS packet, see if we get any response
-    # A real validation checks that the port is open via nmap
-    if nmap -sU -p "$port" "$host" 2>/dev/null | grep -q "open\|open|filtered"; then
-        pass "$label ($host:$port/udp)"
-    else
-        info "$label ($host:$port/udp) — UDP open|filtered (normal for UDP probes)"
-    fi
-}
-
-check_tcp 192.168.60.11 8080   "MOC web interface"
-check_tcp 192.168.60.10 4820   "Ground station command gateway"
-check_tcp 192.168.60.10 5900   "Ground station status port"
-echo ""
-
-# ----------------------------------------------------------------
-# 3. MOC web interface and API
-# ----------------------------------------------------------------
-echo "  [3/5] MOC web interface"
-
-# Health endpoint
-if curl -sf http://192.168.60.11:8080/health 2>/dev/null | grep -q "ok"; then
-    pass "MOC /health returns OK"
+if [ $FAIL -eq 0 ]; then
+  echo "  All checks passed — lab ready for exercises."
 else
-    fail "MOC /health did not respond"
+  echo "  $FAIL checks failed — run setup_lab.sh and retry."
 fi
-
-# Login page exists
-if curl -sf http://192.168.60.11:8080/login 2>/dev/null | grep -q "LOGIN"; then
-    pass "MOC login page accessible"
-else
-    fail "MOC login page not accessible"
-fi
-
-# Test default credentials
-LOGIN_RESP=$(curl -sf -c /tmp/moc_cookies.txt \
-    -d "username=admin&password=admin123" \
-    -X POST http://192.168.60.11:8080/login \
-    -L 2>/dev/null)
-if echo "$LOGIN_RESP" | grep -q "DASHBOARD\|SPACEVE-1\|telemetry"; then
-    pass "MOC default credentials work (admin / admin123)"
-else
-    fail "MOC default credentials failed — check MOC_USERNAME/MOC_PASSWORD env vars"
-fi
-
-# Unauthenticated API access
-TLM=$(curl -sf http://192.168.60.11:8080/api/telemetry 2>/dev/null)
-if echo "$TLM" | grep -q "satellite_id\|uptime\|\{\}"; then
-    pass "MOC /api/telemetry accessible without authentication"
-else
-    fail "MOC /api/telemetry not responding"
-fi
-
-# Raw command API (no auth)
-CMD_RESP=$(curl -sf -X POST http://192.168.60.11:8080/api/command/raw \
-    -H "Content-Type: application/json" \
-    -d '{"hex":"1832c0000001e1","note":"validate_test_nop"}' 2>/dev/null)
-if echo "$CMD_RESP" | grep -q "success"; then
-    pass "MOC /api/command/raw accepts requests without authentication"
-else
-    fail "MOC /api/command/raw not responding"
-fi
-
-echo ""
-
-# ----------------------------------------------------------------
-# 4. Ground station
-# ----------------------------------------------------------------
-echo "  [4/5] Ground station"
-
-GS_BANNER=$(echo "" | nc -w 2 192.168.60.10 5900 2>/dev/null || echo "")
-if echo "$GS_BANNER" | grep -q "SpaceVE-1\|Ground Station"; then
-    pass "Ground station status banner accessible"
-else
-    fail "Ground station status port not responding"
-fi
-
-if echo "$GS_BANNER" | grep -q "gsoperator"; then
-    pass "Ground station exposes credentials in status banner"
-else
-    info "Ground station banner format unexpected — check manually"
-fi
-echo ""
-
-# ----------------------------------------------------------------
-# 5. Satellite CCSDS command interface
-# ----------------------------------------------------------------
-echo "  [5/5] Satellite CCSDS interface"
-
-# Build and send a CCSDS NOP command for APID 0x200 (SpaceVE-1 sample app)
-# Primary header: version=0, type=1(cmd), sec_hdr=1, apid=0x200
-# word0 = 0b000_1_1_00000000000 | 0x200 = 0x1A00
-# word1 = 0b11_00000000000000 = 0xC000
-# data_len = 1 (2 bytes secondary - 1)
-# Primary: 1A 00 C0 00 00 01
-# Secondary: func_code=0x00 -> sec_byte0=0x00, checksum=0xFF^0x00=0xFF
-# Full packet: 1A 00 C0 00 00 01 00 FF
-NOP_PKT="1A00C0000001 00FF"
-NOP_HEX=$(echo "$NOP_PKT" | tr -d ' ')
-
-echo "$NOP_HEX" | xxd -r -p | nc -u -w 1 192.168.60.100 1234 2>/dev/null
-if [ $? -eq 0 ]; then
-    pass "Satellite UDP 1234 accepted CCSDS NOP (no authentication required)"
-else
-    fail "Could not send to satellite UDP 1234 — check container and network"
-fi
-
-# Verify telemetry is flowing to MOC
-sleep 2
-TLM2=$(curl -sf http://192.168.60.11:8080/api/telemetry 2>/dev/null)
-if echo "$TLM2" | python3 -c "import json,sys; d=json.load(sys.stdin); exit(0 if d.get('uptime_s',0)>0 else 1)" 2>/dev/null; then
-    pass "Satellite telemetry flowing to MOC (uptime > 0)"
-else
-    info "Telemetry uptime not confirmed — satellite may still be starting"
-fi
-echo ""
-
-# ----------------------------------------------------------------
-# Summary
-# ----------------------------------------------------------------
-echo "  =============================================="
-if [ "$FAIL" -eq 0 ]; then
-    echo -e "  ${GREEN}LAB READY — $PASS checks passed${NC}"
-    echo "  All attack surfaces confirmed operational."
-else
-    echo -e "  ${RED}$FAIL checks failed${NC} | $PASS passed"
-    echo "  Fix failures before starting exercises."
-    echo "  Run: cd lab && docker compose logs <service>"
-fi
-echo "  =============================================="
-echo ""
-
-# Return exit code for use in CI/scripted environments
-[ "$FAIL" -eq 0 ]

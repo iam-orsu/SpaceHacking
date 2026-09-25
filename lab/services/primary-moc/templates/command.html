@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% block title %}Command — C2{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">Command Interface</span>
+  <span class="page-sub">CCSDS uplink — approval workflow active</span>
+</div>
+
+<div class="grid grid-2 mb-8">
+
+  <!-- Command builder -->
+  <div class="panel">
+    <div class="panel-header">Build Uplink Command</div>
+    <div class="panel-body">
+      <div class="form-group mb-8">
+        <label>Target Satellite</label>
+        <select id="cmd-sat">
+          {% for sat in satellites %}
+          <option value="{{ sat.name }}">{{ sat.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group mb-8">
+        <label>Function Code</label>
+        <select id="cmd-func" onchange="updateCmdInfo()">
+          <option value="0x00" data-level="1" data-desc="No-op — heartbeat packet">0x00 — NOP</option>
+          <option value="0x01" data-level="2" data-desc="Enable optical camera payload">0x01 — CAMERA_ON</option>
+          <option value="0x02" data-level="1" data-desc="Disable optical camera payload">0x02 — CAMERA_OFF</option>
+          <option value="0x03" data-level="2" data-desc="Enable 400MHz downlink — leaks mission_plan">0x03 — DOWNLINK_ENABLE</option>
+          <option value="0x04" data-level="1" data-desc="Disable downlink">0x04 — DOWNLINK_DISABLE</option>
+          <option value="0x05" data-level="3" data-desc="Initiate memory dump — slow, high power">0x05 — MEMORY_DUMP</option>
+          <option value="0x06" data-level="3" data-desc="Software reboot — ~90s comms blackout">0x06 — REBOOT</option>
+          <option value="0x07" data-level="3" data-desc="Enter safe mode — all non-essential systems off">0x07 — SAFING_MODE</option>
+          <option value="0x08" data-level="2" data-desc="Resume nominal operations">0x08 — NOMINAL_MODE</option>
+          <option value="0x0A" data-level="3" data-desc="Cut power to payload bay">0x0A — PAYLOAD_POWER_OFF</option>
+        </select>
+      </div>
+      <div class="form-group mb-8">
+        <label>Approval Level</label>
+        <div id="cmd-level-display" style="padding:6px 10px;border:1px solid var(--border);background:#070b1e;font-size:12px;color:var(--text);">
+          Level 1 — Auto-execute
+        </div>
+        <!-- intentional: level is also sent as form field — client-controlled -->
+        <input type="hidden" id="cmd-level-val" value="1">
+      </div>
+      <div class="form-group mb-8">
+        <label>Command Description</label>
+        <div id="cmd-desc" style="font-size:11px;color:var(--text-dim);padding:4px 0;min-height:30px;">
+          No-op — heartbeat packet
+        </div>
+      </div>
+      <div class="form-group mb-8">
+        <label>User Data (hex, optional)</label>
+        <input type="text" id="cmd-udata" placeholder="e.g. deadbeef" style="width:100%;">
+        <div style="font-size:10px;color:var(--text-faint);margin-top:3px;">
+          Raw bytes appended to CCSDS secondary header
+        </div>
+      </div>
+
+      <!-- CCSDS packet preview -->
+      <div style="background:#070b1e;border:1px solid var(--border);padding:8px 12px;margin-bottom:12px;">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--text-faint);margin-bottom:6px;">
+          PACKET PREVIEW (hex)
+        </div>
+        <div id="packet-preview" style="font-family:'Courier New';font-size:12px;color:#aaddff;word-break:break-all;">
+          —
+        </div>
+      </div>
+
+      <div class="form-row">
+        <button class="btn" onclick="sendCommand()">SEND COMMAND</button>
+        <button class="btn btn-secondary" onclick="sendRawCommand()">
+          RAW (bypass approval)
+        </button>
+      </div>
+
+      <div id="cmd-result" style="display:none;margin-top:12px;padding:8px 12px;border-left:3px solid var(--nominal);background:#081808;font-size:11px;"></div>
+    </div>
+  </div>
+
+  <!-- Pending approvals -->
+  <div class="panel">
+    <div class="panel-header">
+      Approval Queue
+      <span class="badge warning" id="pending-count">{{ pending_cmds|length }}</span>
+    </div>
+    <div class="panel-body" style="padding:0;">
+      <table class="data-table" id="pending-table">
+        <thead><tr>
+          <th>ID</th><th>Sat</th><th>Function</th><th>Level</th>
+          <th>Submitted</th><th>Action</th>
+        </tr></thead>
+        <tbody id="pending-tbody">
+        {% if pending_cmds %}
+          {% for cmd in pending_cmds %}
+          <tr id="row-{{ cmd.id }}">
+            <td class="mono" style="font-size:11px;">#{{ cmd.id }}</td>
+            <td>{{ cmd.satellite_id.replace('SpaceVE-1','') }}</td>
+            <td class="mono" style="font-size:11px;">{{ cmd.func_name }}</td>
+            <td><span class="badge {% if cmd.level == 3 %}critical{% elif cmd.level == 2 %}warning{% else %}nominal{% endif %}">L{{ cmd.level }}</span></td>
+            <td class="text-dim" style="font-size:10px;">
+              {{ cmd.submitted_at.strftime('%H:%M:%S') if cmd.submitted_at else '—' }}
+            </td>
+            <td>
+              <button class="btn" onclick="approveCmd({{ cmd.id }})"
+                style="font-size:10px;padding:2px 6px;">APPROVE</button>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr id="no-pending"><td colspan="6" style="text-align:center;color:var(--text-faint);padding:12px;font-size:11px;">
+            No pending commands
+          </td></tr>
+        {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Command history -->
+<div class="panel">
+  <div class="panel-header">Command History — Last 24h</div>
+  <div class="panel-body" style="padding:0;">
+    <table class="data-table">
+      <thead><tr>
+        <th>ID</th><th>Satellite</th><th>Func Code</th><th>Function</th>
+        <th>Level</th><th>Status</th><th>Approvals</th><th>Submitted By</th><th>Time</th>
+      </tr></thead>
+      <tbody>
+      {% for cmd in cmd_history %}
+      <tr>
+        <td class="mono" style="font-size:11px;">#{{ cmd.id }}</td>
+        <td>{{ cmd.satellite_id }}</td>
+        <td class="mono">0x{{ '%02X'|format(cmd.func_code) }}</td>
+        <td class="mono" style="font-size:11px;">{{ cmd.func_name }}</td>
+        <td><span class="badge {% if cmd.level == 3 %}critical{% elif cmd.level == 2 %}warning{% else %}nominal{% endif %}">L{{ cmd.level }}</span></td>
+        <td><span class="badge {% if cmd.status == 'EXECUTED' %}executed{% elif cmd.status == 'PENDING' %}pending{% elif cmd.status == 'REJECTED' %}critical{% else %}nominal{% endif %}">
+          {{ cmd.status }}
+        </span></td>
+        <td class="text-dim">{{ cmd.approvals|default(0) }}/{{ cmd.approvals_needed|default(1) }}</td>
+        <td class="mono" style="font-size:11px;">{{ cmd.submitted_by }}</td>
+        <td class="text-dim" style="font-size:11px;">
+          {{ cmd.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if cmd.submitted_at else '—' }}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CMDS = {
+  '0x00': { level:1, name:'NOP',             desc:'No-op — heartbeat packet' },
+  '0x01': { level:2, name:'CAMERA_ON',       desc:'Enable optical camera payload' },
+  '0x02': { level:1, name:'CAMERA_OFF',      desc:'Disable optical camera' },
+  '0x03': { level:2, name:'DOWNLINK_ENABLE', desc:'Enable 400MHz downlink — mission_plan will appear in telemetry' },
+  '0x04': { level:1, name:'DOWNLINK_DISABLE',desc:'Disable downlink' },
+  '0x05': { level:3, name:'MEMORY_DUMP',     desc:'Initiate memory dump — slow, high power draw' },
+  '0x06': { level:3, name:'REBOOT',          desc:'Software reboot — ~90s comms blackout' },
+  '0x07': { level:3, name:'SAFING_MODE',     desc:'Enter safe mode — non-essential systems off' },
+  '0x08': { level:2, name:'NOMINAL_MODE',    desc:'Resume nominal ops from safe mode' },
+  '0x0A': { level:3, name:'PAYLOAD_POWER_OFF',desc:'Cut power to payload bay' },
+};
+
+function updateCmdInfo() {
+  const sel = document.getElementById('cmd-func');
+  const fc  = sel.value;
+  const info = CMDS[fc] || {};
+  const lvl = info.level || 1;
+  const lvlLabels = ['','Auto-execute','Requires 1 approver (SAFETY_OPS+)','Requires 2 approvers'];
+  document.getElementById('cmd-level-display').textContent = 'Level ' + lvl + ' — ' + lvlLabels[lvl];
+  document.getElementById('cmd-level-val').value = lvl;
+  document.getElementById('cmd-desc').textContent = info.desc || '';
+  buildPreview();
+}
+
+function buildPreview() {
+  const sel = document.getElementById('cmd-func');
+  const fc  = parseInt(sel.value, 16);
+  const ud  = (document.getElementById('cmd-udata').value || '').replace(/\s/g,'');
+  if (isNaN(fc)) { document.getElementById('packet-preview').textContent='—'; return; }
+  // Simplified CCSDS: 6-byte primary + 2-byte secondary
+  const apid = 0x200;
+  const word0 = ((0<<13)|(1<<12)|(1<<11)|(apid&0x7FF)) >>> 0;
+  const word1 = (0xC000) >>> 0; // standalone, seq=0
+  const udBytes = ud ? ud.match(/.{1,2}/g) : [];
+  const dataLen = 1 + 1 + (udBytes ? udBytes.length : 0);
+  const word2 = dataLen - 1;
+  let ck = 0xFF ^ fc;
+  if (udBytes) udBytes.forEach(b => ck ^= parseInt(b,16));
+  ck &= 0xFF;
+  const primary = [
+    (word0>>8)&0xFF, word0&0xFF,
+    (word1>>8)&0xFF, word1&0xFF,
+    (word2>>8)&0xFF, word2&0xFF
+  ];
+  const secondary = [fc & 0xFF, ck];
+  const all = [...primary, ...secondary, ...(udBytes||[]).map(b=>parseInt(b,16))];
+  document.getElementById('packet-preview').textContent =
+    all.map(b => b.toString(16).padStart(2,'0')).join(' ').toUpperCase();
+}
+
+document.getElementById('cmd-udata').addEventListener('input', buildPreview);
+updateCmdInfo();
+
+function sendCommand() {
+  const sat  = document.getElementById('cmd-sat').value;
+  const func = document.getElementById('cmd-func').value;
+  const lvl  = parseInt(document.getElementById('cmd-level-val').value);
+  const ud   = document.getElementById('cmd-udata').value || '';
+  const body = { satellite_id: sat, func_code: func, level: lvl, user_data: ud };
+  fetch('/api/commands/send', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  }).then(r=>r.json()).then(d=>{
+    showResult(d.status || d.error, d.status === 'queued' || d.status === 'sent');
+    if (d.cmd_id) loadPending();
+  }).catch(e => showResult('Network error: ' + e, false));
+}
+
+function sendRawCommand() {
+  const sat  = document.getElementById('cmd-sat').value;
+  const func = document.getElementById('cmd-func').value;
+  const ud   = document.getElementById('cmd-udata').value || '';
+  // raw endpoint bypasses the entire approval workflow
+  const body = { satellite_id: sat, func_code: func, user_data: ud };
+  fetch('/api/commands/raw', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  }).then(r=>r.json()).then(d=>{
+    showResult('[RAW] ' + (d.status || d.error), !!d.status);
+  });
+}
+
+function showResult(msg, ok) {
+  const el = document.getElementById('cmd-result');
+  el.style.display = 'block';
+  el.style.borderLeftColor = ok ? 'var(--nominal)' : 'var(--critical)';
+  el.style.background = ok ? '#081808' : '#1a0808';
+  el.textContent = msg;
+  setTimeout(()=>el.style.display='none', 5000);
+}
+
+function approveCmd(id) {
+  fetch('/api/commands/'+id+'/approve', {method:'POST'})
+    .then(r=>r.json()).then(d=>{
+      showResult('#'+id+': '+(d.status||d.error), !!d.status);
+      loadPending();
+    });
+}
+
+function loadPending() {
+  fetch('/api/commands/pending')
+    .then(r=>r.json()).then(cmds=>{
+      document.getElementById('pending-count').textContent = cmds.length;
+      const tbody = document.getElementById('pending-tbody');
+      if (!cmds.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-faint);padding:12px;font-size:11px;">No pending commands</td></tr>';
+        return;
+      }
+      const lvlBadge = l => l===3?'critical':l===2?'warning':'nominal';
+      tbody.innerHTML = cmds.map(c=>`<tr>
+        <td class="mono" style="font-size:11px;">#${c.id}</td>
+        <td>${c.satellite_id.replace('SpaceVE-1','')}</td>
+        <td class="mono" style="font-size:11px;">${c.func_name}</td>
+        <td><span class="badge ${lvlBadge(c.level)}">L${c.level}</span></td>
+        <td class="text-dim" style="font-size:10px;">${c.submitted_at||'—'}</td>
+        <td><button class="btn" onclick="approveCmd(${c.id})" style="font-size:10px;padding:2px 6px;">APPROVE</button></td>
+      </tr>`).join('');
+    });
+}
+</script>
+{% endblock %}

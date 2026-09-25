@@ -1,0 +1,41 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'primary-moc'
+    static_configs:
+      - targets: ['primary-moc:5000']
+    metrics_path: '/metrics'
+
+  - job_name: 'backup-moc'
+    static_configs:
+      - targets: ['backup-moc:5000']
+    metrics_path: '/metrics'
+
+  - job_name: 'satellite-1'
+    static_configs:
+      - targets: ['satellite-1:8080']
+    metrics_path: '/metrics'
+
+  - job_name: 'satellite-2'
+    static_configs:
+      - targets: ['satellite-2:8080']
+    metrics_path: '/metrics'
+
+  - job_name: 'satellite-3'
+    static_configs:
+      - targets: ['satellite-3:8080']
+    metrics_path: '/metrics'
+
+  - job_name: 'ground-station-1'
+    static_configs:
+      - targets: ['ground-station-1:9001']
+
+  - job_name: 'ground-station-2'
+    static_configs:
+      - targets: ['ground-station-2:9001']
+
+  - job_name: 'incident-response'
+    static_configs:
+      - targets: ['incident-response:9090']

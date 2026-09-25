@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">Mission Dashboard</span>
+  <span class="page-sub">OSA-2024 &nbsp;/&nbsp; SpaceVE-1 Constellation &nbsp;/&nbsp; 3 Satellites Active</span>
+</div>
+
+<!-- Satellite Status Row -->
+<div class="grid grid-3 mb-8">
+  {% for sat in satellites %}
+  {% set tlm = tlm_cache.get(sat.name, {}) %}
+  {% set power = tlm.get('power', {}) %}
+  {% set orb = tlm.get('orbital', {}) %}
+  {% set health = tlm.get('health', {}) %}
+  {% set mode = tlm.get('mode', 'NO DATA') %}
+  <div class="panel">
+    <div class="panel-header">
+      {{ sat.name }}
+      <span class="badge {% if mode == 'NOMINAL' %}nominal{% elif mode == 'SAFE' %}warning{% else %}critical{% endif %}">
+        {{ mode }}
+      </span>
+    </div>
+    <div class="panel-body">
+      <div class="grid grid-2" style="gap:6px;">
+        <div class="stat-box {% if (power.get('battery_soc_pct') or 100) < 30 %}critical{% elif (power.get('battery_soc_pct') or 100) < 50 %}warning{% else %}nominal{% endif %}">
+          <div class="stat-label">Battery SoC</div>
+          <div class="stat-value">{{ "%.1f"|format(power.get('battery_soc_pct', 0)) }}<span class="stat-unit">%</span></div>
+        </div>
+        <div class="stat-box {% if (power.get('battery_v') or 28) < 25 %}critical{% elif (power.get('battery_v') or 28) < 27 %}warning{% else %}nominal{% endif %}">
+          <div class="stat-label">Bus Voltage</div>
+          <div class="stat-value">{{ "%.2f"|format(power.get('battery_v', 0)) }}<span class="stat-unit">V</span></div>
+        </div>
+      </div>
+      <div class="status-row mt-8">
+        <span class="status-key">Position</span>
+        <span class="status-value">
+          {% if orb.get('lat') is not none %}
+          {{ "%.2f"|format(orb.lat) }}° / {{ "%.2f"|format(orb.lon) }}°
+          {% else %}—{% endif %}
+        </span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">Eclipse</span>
+        <span class="status-value {% if orb.get('eclipse') %}text-warning{% else %}text-nominal{% endif %}">
+          {{ "ECLIPSE" if orb.get('eclipse') else "SUNLIT" }}
+        </span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">Uptime</span>
+        <span class="status-value">{{ health.get('uptime_s', 0)|int }}s</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">Contact</span>
+        <span class="status-value {% if tlm.get('comms', {}).get('in_contact_with') %}text-nominal{% else %}text-dim{% endif %}">
+          {% set contact = tlm.get('comms', {}).get('in_contact_with', []) %}
+          {{ contact|join(', ') if contact else 'NO CONTACT' }}
+        </span>
+      </div>
+      <a href="/c2/telemetry?sat={{ sat.name }}" style="display:block;margin-top:8px;font-size:11px;color:var(--accent);text-decoration:none;">
+        Full Telemetry →
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Bottom row: pending commands + incidents + recent activity -->
+<div class="grid grid-3">
+
+  <!-- Pending Commands -->
+  <div class="panel">
+    <div class="panel-header">
+      Pending Approvals
+      <span class="badge {% if pending_cmds %}warning{% else %}nominal{% endif %}">
+        {{ pending_cmds|length }}
+      </span>
+    </div>
+    <div class="panel-body" style="padding:0;">
+      {% if pending_cmds %}
+      <table class="data-table">
+        <thead><tr>
+          <th>Satellite</th><th>Command</th><th>By</th><th>Level</th>
+          {% if session.role in ['SAFETY_OPS','ADMIN','PAYLOAD_OPS'] %}<th>Action</th>{% endif %}
+        </tr></thead>
+        <tbody>
+        {% for cmd in pending_cmds[:5] %}
+        <tr>
+          <td>{{ cmd.satellite_id }}</td>
+          <td class="mono">{{ cmd.func_name }}</td>
+          <td>{{ cmd.submitted_by }}</td>
+          <td><span class="badge {% if cmd.level == 3 %}critical{% elif cmd.level == 2 %}warning{% else %}nominal{% endif %}">L{{ cmd.level }}</span></td>
+          {% if session.role in ['SAFETY_OPS','ADMIN','PAYLOAD_OPS'] %}
+          <td>
+            <button class="btn" onclick="approveCmd({{ cmd.id }})" style="font-size:10px;padding:2px 8px;">
+              APPROVE
+            </button>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="padding:16px;color:var(--text-faint);text-align:center;font-size:11px;">
+        No pending commands
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Recent Incidents -->
+  <div class="panel">
+    <div class="panel-header">
+      Incident Alerts
+      <span class="badge {% if recent_inc %}critical{% else %}nominal{% endif %}">
+        {{ recent_inc|length }}
+      </span>
+    </div>
+    <div class="panel-body" style="padding:0;">
+      {% if recent_inc %}
+      <table class="data-table">
+        <thead><tr><th>Severity</th><th>Type</th><th>Detected</th></tr></thead>
+        <tbody>
+        {% for inc in recent_inc %}
+        <tr>
+          <td><span class="badge {% if inc.severity == 'CRITICAL' %}critical{% elif inc.severity == 'HIGH' %}critical{% elif inc.severity == 'MEDIUM' %}warning{% else %}nominal{% endif %}">
+            {{ inc.severity }}
+          </span></td>
+          <td>{{ inc.type }}</td>
+          <td class="text-dim" style="font-size:11px;">
+            {{ inc.detected_at.strftime('%H:%M') if inc.detected_at else '—' }}
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="padding:16px;color:var(--text-faint);text-align:center;font-size:11px;">
+        No active incidents
+      </div>
+      {% endif %}
+      <div style="padding:8px 12px;border-top:1px solid var(--border2);">
+        <a href="/incident-response" style="font-size:11px;color:var(--accent);text-decoration:none;">
+          Full IR Dashboard →
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Commands -->
+  <div class="panel">
+    <div class="panel-header">Command Log</div>
+    <div class="panel-body" style="padding:0;">
+      <table class="data-table">
+        <thead><tr><th>Time</th><th>Sat</th><th>Command</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for cmd in recent_cmds %}
+        <tr>
+          <td class="text-dim" style="font-size:11px;">
+            {{ cmd.submitted_at.strftime('%H:%M:%S') if cmd.submitted_at else '—' }}
+          </td>
+          <td>{{ cmd.satellite_id.replace('SpaceVE-1','') }}</td>
+          <td class="mono" style="font-size:11px;">{{ cmd.func_name }}</td>
+          <td><span class="badge {% if cmd.status == 'EXECUTED' %}executed{% elif cmd.status == 'PENDING' %}pending{% else %}nominal{% endif %}">
+            {{ cmd.status[:4] }}
+          </span></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function approveCmd(id) {
+  if (!confirm('Approve command ' + id + '?')) return;
+  fetch('/api/commands/' + id + '/approve', {method: 'POST',
+    headers:{'Content-Type':'application/json'}})
+    .then(r => r.json()).then(d => {
+      alert('Command ' + id + ': ' + (d.status || d.error));
+      location.reload();
+    });
+}
+// Auto-refresh dashboard every 10 seconds
+setTimeout(function() { location.reload(); }, 10000);
+</script>
+{% endblock %}

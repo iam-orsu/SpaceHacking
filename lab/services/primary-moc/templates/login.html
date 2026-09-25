@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OSA — Operator Authentication</title>
+<style>
+:root {
+  --bg: #0a0e27; --surface: #0f1432; --border: #2a2f45;
+  --text: #dde1f0; --text-dim: #8891b0; --text-faint: #4a5070;
+  --nominal: #4CAF50; --critical: #f44336; --accent: #1976D2;
+  --font-data: 'Courier New', monospace;
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-data);
+  font-size: 13px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.login-wrapper {
+  width: 380px;
+}
+.agency-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.agency-emblem {
+  width: 64px;
+  height: 64px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 22px;
+  color: var(--accent);
+  background: var(--surface);
+}
+.agency-name {
+  font-size: 16px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--text);
+  font-weight: bold;
+}
+.agency-sub {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+.login-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 24px;
+}
+.login-title {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.field-group { margin-bottom: 16px; }
+.field-label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+input[type="text"], input[type="password"] {
+  width: 100%;
+  background: #070b1e;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-data);
+  font-size: 13px;
+  padding: 8px 10px;
+  letter-spacing: 0.5px;
+}
+input:focus { outline: none; border-color: var(--accent); }
+.btn-login {
+  width: 100%;
+  padding: 8px;
+  font-family: var(--font-data);
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.btn-login:hover { background: #1565c0; }
+.error-msg {
+  padding: 6px 10px;
+  background: #1a0808;
+  border-left: 3px solid var(--critical);
+  margin-bottom: 14px;
+  font-size: 11px;
+  color: #f08080;
+}
+.classification-banner {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.class-label {
+  display: inline-block;
+  padding: 2px 12px;
+  border: 1px solid #3a1a1a;
+  color: #cc4444;
+  font-size: 9px;
+  letter-spacing: 3px;
+  margin-bottom: 6px;
+}
+.footer-note {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 10px;
+  color: var(--text-faint);
+  line-height: 1.6;
+}
+</style>
+</head>
+<body>
+<div class="login-wrapper">
+  <div class="agency-header">
+    <div class="agency-emblem">&#9711;</div>
+    <div class="agency-name">Orsu Space Agency</div>
+    <div class="agency-sub">Command &amp; Control Network</div>
+  </div>
+
+  <div class="login-panel">
+    <div class="login-title">Operator Authentication</div>
+
+    {% with messages = get_flashed_messages(with_categories=True) %}
+    {% for cat, msg in messages %}
+    <div class="error-msg">{{ msg }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    <form method="POST" action="/login" autocomplete="off">
+      <div class="field-group">
+        <label class="field-label" for="username">Operator ID</label>
+        <input type="text" id="username" name="username"
+               placeholder="username" autofocus autocomplete="off">
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="password">Access Code</label>
+        <input type="password" id="password" name="password"
+               placeholder="••••••••••" autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-login">Authenticate</button>
+    </form>
+  </div>
+
+  <div class="classification-banner">
+    <div class="class-label">CONFIDENTIAL</div><br>
+    Unauthorized access is prohibited.<br>
+    All sessions are logged and monitored.
+  </div>
+  <div class="footer-note">
+    OSA-C2 v2.4 &nbsp;|&nbsp; SpaceVE-1 Constellation<br>
+    System Operator: ops-support@orsu.space
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Network — C2{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">Ground Network</span>
+  <span class="page-sub">Segmentation topology — 3 VLANs — firewall state</span>
+</div>
+
+<!-- Network segment summary -->
+<div class="grid grid-3 mb-8">
+  <div class="panel">
+    <div class="panel-header">
+      <span style="color:#1976D2;">CMD</span> — spacelab-cmd (192.168.61.0/24)
+    </div>
+    <div class="panel-body">
+      <div class="status-row">
+        <span class="status-key">Purpose</span>
+        <span class="status-value">Uplink / Command uplink</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">primary-moc</span>
+        <span class="status-value mono text-nominal">192.168.61.10</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">backup-moc</span>
+        <span class="status-value mono text-nominal">192.168.61.11</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">ground-station-1</span>
+        <span class="status-value mono text-nominal">192.168.61.20</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">ground-station-2</span>
+        <span class="status-value mono text-warning">192.168.61.21 (MAINT)</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">incident-response</span>
+        <span class="status-value mono text-warning">192.168.61.30 ⚠</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">satellite-1/2/3</span>
+        <span class="status-value mono text-dim">.100 / .101 / .102</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span style="color:#4CAF50;">TLM</span> — spacelab-tlm (192.168.62.0/24)
+    </div>
+    <div class="panel-body">
+      <div class="status-row">
+        <span class="status-key">Purpose</span>
+        <span class="status-value">Downlink / Telemetry only</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">primary-moc</span>
+        <span class="status-value mono text-warning">192.168.62.10 ⚠</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">telemetry-db</span>
+        <span class="status-value mono text-warning">192.168.62.20 ⚠</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">incident-response</span>
+        <span class="status-value mono text-warning">192.168.62.30 ⚠</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span style="color:#ff9800;">ADMIN</span> — spacelab-admin (192.168.63.0/24)
+    </div>
+    <div class="panel-body">
+      <div class="status-row">
+        <span class="status-key">Purpose</span>
+        <span class="status-value">Management / Monitoring</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">primary-moc</span>
+        <span class="status-value mono text-warning">192.168.63.10 ⚠</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">backup-moc</span>
+        <span class="status-value mono text-nominal">192.168.63.11</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">telemetry-db</span>
+        <span class="status-value mono text-warning">192.168.63.20 ⚠</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">incident-response</span>
+        <span class="status-value mono text-warning">192.168.63.30 ⚠</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">prometheus</span>
+        <span class="status-value mono text-nominal">192.168.63.40</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">grafana</span>
+        <span class="status-value mono text-warning">192.168.63.41 ⚠</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Misconfig summary panel -->
+<div class="panel mb-8">
+  <div class="panel-header" style="color:var(--warning);">
+    ⚠ Identified Misconfigurations — 8 Training Targets
+  </div>
+  <div class="panel-body" style="padding:0;">
+    <table class="data-table">
+      <thead><tr>
+        <th>#</th><th>Host</th><th>Misconfiguration</th><th>Impact</th><th>Attack Surface</th>
+      </tr></thead>
+      <tbody>
+      <tr>
+        <td class="mono">MC-1</td>
+        <td>primary-moc</td>
+        <td>Connected to ALL 3 networks (cmd+tlm+admin)</td>
+        <td><span class="badge critical">CRITICAL</span></td>
+        <td>Lateral movement: cmd → admin pivot</td>
+      </tr>
+      <tr>
+        <td class="mono">MC-2</td>
+        <td>primary-moc</td>
+        <td><code>/api/telemetry/latest</code> requires no authentication</td>
+        <td><span class="badge warning">HIGH</span></td>
+        <td>Unauthenticated telemetry read</td>
+      </tr>
+      <tr>
+        <td class="mono">MC-3</td>
+        <td>primary-moc</td>
+        <td>Hardcoded <code>SECRET_KEY</code> used for session tokens</td>
+        <td><span class="badge warning">HIGH</span></td>
+        <td>Session forging / cookie tampering</td>
+      </tr>
+      <tr>
+        <td class="mono">MC-4</td>
+        <td>primary-moc</td>
+        <td>MD5 password hashing (no bcrypt/argon2)</td>
+        <td><span class="badge warning">HIGH</span></td>
+        <td>Offline cracking from DB dump</td>
+      </tr>
+      <tr>
+        <td class="mono">MC-5</td>
+        <td>primary-moc</td>
+        <td>SQL injection in telemetry search — f-string query</td>
+        <td><span class="badge critical">CRITICAL</span></td>
+        <td>Full DB read via <code>/c2/telemetry?search=</code></td>
+      </tr>
+      <tr>
+        <td class="mono">MC-6</td>
+        <td>primary-moc</td>
+        <td><code>/api/commands/raw</code> bypasses approval workflow</td>
+        <td><span class="badge critical">CRITICAL</span></td>
+        <td>Direct command injection, no level check</td>
+      </tr>
+      <tr>
+        <td class="mono">MC-7</td>
+        <td>ground-station-2</td>
+        <td>Running in MAINTENANCE_MODE=true (no auth)</td>
+        <td><span class="badge warning">HIGH</span></td>
+        <td>Credential bypass on backup uplink path</td>
+      </tr>
+      <tr>
+        <td class="mono">MC-8</td>
+        <td>grafana</td>
+        <td>Default admin/admin + anonymous viewer access</td>
+        <td><span class="badge warning">MEDIUM</span></td>
+        <td>Network topology exposure, metric enumeration</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Ground station status -->
+<div class="panel mb-8">
+  <div class="panel-header">Ground Station Status</div>
+  <div class="panel-body" style="padding:0;">
+    <table class="data-table" id="gs-table">
+      <thead><tr>
+        <th>Station</th><th>IP</th><th>Port</th><th>Mode</th>
+        <th>Auth Required</th><th>TCP State</th><th>Last Beacon</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td>ground-station-1</td>
+          <td class="mono">192.168.61.20</td>
+          <td class="mono">9001</td>
+          <td><span class="badge nominal">NOMINAL</span></td>
+          <td class="text-nominal">YES</td>
+          <td id="gs1-state" class="text-dim">—</td>
+          <td id="gs1-beacon" class="text-dim">—</td>
+        </tr>
+        <tr>
+          <td>ground-station-2</td>
+          <td class="mono">192.168.61.21</td>
+          <td class="mono">9001</td>
+          <td><span class="badge warning">MAINTENANCE</span></td>
+          <td class="text-warning">NO ⚠</td>
+          <td id="gs2-state" class="text-dim">—</td>
+          <td id="gs2-beacon" class="text-dim">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function checkGS() {
+  // Poll GS health endpoints
+  ['1','2'].forEach(n => {
+    fetch('/api/network/gs/' + n + '/status')
+      .then(r => r.json())
+      .then(d => {
+        document.getElementById('gs'+n+'-state').textContent = d.tcp_state || 'UP';
+        document.getElementById('gs'+n+'-state').className = 'status-value ' + (d.tcp_state === 'UP' ? 'text-nominal' : 'text-critical');
+        document.getElementById('gs'+n+'-beacon').textContent = d.last_beacon || '—';
+      }).catch(() => {
+        document.getElementById('gs'+n+'-state').textContent = 'UNKNOWN';
+      });
+  });
+}
+checkGS();
+setInterval(checkGS, 5000);
+</script>
+{% endblock %}
