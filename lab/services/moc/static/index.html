@@ -1130,8 +1130,11 @@ main {
         <div class="net-segment">
           <div class="net-seg-header" style="background:#f0fdf4;color:#166534">Admin Network<span class="cidr">192.168.63.0/24</span></div>
           <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">MOC (Admin)</span><span class="haddr">192.168.63.10</span></div>
-          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">Grafana</span><span class="haddr">192.168.63.30:3000</span></div>
-          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">Telemetry DB</span><span class="haddr">192.168.63.40:5432</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">Telemetry DB</span><span class="haddr">192.168.63.20:5432</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span><span class="hname">IRS (Incident Response)</span><span class="haddr">192.168.63.30</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">Prometheus</span><span class="haddr">192.168.63.40:9090</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">Grafana</span><span class="haddr">192.168.63.41:3000</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span><span class="hname">Satcom Modem</span><span class="haddr">192.168.63.51:9000</span><span class="htag attack">RCE</span></div>
         </div>
         <div class="net-segment">
           <div class="net-seg-header" style="background:#fdf2f8;color:#7c3aed">MOC Services<span class="cidr">Exposed Ports</span></div>
@@ -1157,6 +1160,7 @@ main {
             <tr><td>Telemetry Database</td><td>PostgreSQL :5432</td><td>TCP</td><td><span style="color:var(--nominal);font-weight:600">NOMINAL</span></td></tr>
             <tr><td>Monitoring (Grafana)</td><td>HTTP :3000</td><td>HTTPS</td><td><span style="color:var(--nominal);font-weight:600">ACTIVE</span></td></tr>
             <tr><td>Metrics (Prometheus)</td><td>HTTP :9090</td><td>HTTP</td><td><span style="color:var(--nominal);font-weight:600">ACTIVE</span></td></tr>
+            <tr><td>Satcom Modem</td><td>TCP 192.168.63.51:9000</td><td>Custom</td><td><span style="color:#f59e0b;font-weight:600">NO AUTH</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -1333,7 +1337,7 @@ function handleMsg(msg) {
       }
       break;
     case 'mission_data':
-      state.missionData[msg.satellite_id] = msg.payload;
+      state.missionData[msg.satellite_id] = msg;
       renderMissionAlert();
       break;
     case 'connected':

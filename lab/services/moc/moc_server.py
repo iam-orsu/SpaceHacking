@@ -96,12 +96,20 @@ def has_perm(role: str, perm: str) -> bool:
 
 
 def build_ccsds_tc(apid: int, fc: int) -> bytes:
+    """Build PUS-C TC[128,1] (13 bytes) matching satellite validate_ccsds."""
     global _cmd_seq
     _cmd_seq = (_cmd_seq + 1) & 0x3FFF
     word0 = (1 << 12) | (1 << 11) | (apid & 0x7FF)
     word1 = (0b11 << 14) | _cmd_seq
-    sec0  = (fc & 0x7F) << 1
-    return struct.pack(">HHH", word0, word1, 1) + bytes([sec0, 0xFF ^ sec0])
+    # PUS-C secondary header: pus_ver_ack(1) svc_type(1) svc_subtype(1) source_id(2) fc(1) ck(1)
+    pus_ver_ack = 0x21  # PUS-C=0x20 | ACK accept=0x01
+    hdr = struct.pack(">BBBH", pus_ver_ack, 128, 1, 0x0001)
+    ck  = 0xFF
+    for b in hdr:
+        ck ^= b
+    ck ^= fc
+    secondary = hdr + bytes([fc, ck])   # 7 bytes, data_len = 6
+    return struct.pack(">HHH", word0, word1, len(secondary) - 1) + secondary
 
 
 async def relay_to_gs(satellite_id: str, func_name: str) -> tuple:

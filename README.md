@@ -1,5 +1,21 @@
 # SpaceVE-1 Satellite Hacking Lab
 
+## Deploy
+
+Get a free NASA API key: https://api.nasa.gov/
+
+```bash
+cd lab
+echo "NASA_API_KEY=your_key_here" > .env
+docker compose up --build -d
+```
+
+Open: http://localhost:8080
+
+Read docs: `lab/docs/adversary_scenario.md`
+
+---
+
 ## You Are Already Inside
 
 You are an APT operator with a foothold inside OrsuSpace Agency's corporate network.
@@ -41,6 +57,7 @@ Start the attack: `lab/docs/attack_playbook.md`
 | MOC Dashboard | localhost:8080 HTTP | Entry point — see all satellite state |
 | MOC WebSocket | localhost:8765 WS | TLM readable without auth (MC-MOC-1) |
 | MOC Imaging API | localhost:8080/api | Redirect endpoint: no auth (MC-MOC-5) |
+| Satcom Modem | 192.168.63.51:9000 TCP | Firmware update RCE, no auth (MC-MODEM-1/2/3) |
 | Grafana | localhost:3000 | admin / admin (MC-GRF-1) |
 
 ---
@@ -132,6 +149,8 @@ All tools in `lab/tools/`:
 | `ground_station_scanner.py` | Enumerate GS banners and command lists |
 | `command_injector.py` | Inject commands via GS relay or direct UDP |
 | `ccsds_telemetry_spoofer.py` | Spoof TLM frames to MOC |
+| `modem_rce.py` | Satcom modem firmware update RCE (MC-MODEM-1/2/3) |
+| `rs_demo.py` | Reed-Solomon RS(255,223) demo: channel noise, MITM re-encode |
 
 ---
 
