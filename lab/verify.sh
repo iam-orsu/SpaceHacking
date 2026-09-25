@@ -51,11 +51,16 @@ tcp_open 127.0.0.1 8765
 check "localhost:8765 (MOC WebSocket TLM) is listening" $?
 
 # 6. Satellite CCSDS UDP port (checked from inside the Docker cmd network via MOC)
-docker exec spaceve1-moc nc -zu -w2 192.168.61.100 1234 2>/dev/null
+# Use Python (guaranteed in the python:3.11-slim MOC image) instead of nc
+docker exec spaceve1-moc python -c \
+  "import socket,sys; s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.settimeout(2); s.sendto(b'\x00',('192.168.61.100',1234)); s.close()" \
+  2>/dev/null
 check "192.168.61.100:1234/udp (SpaceVE-1A CCSDS command port) reachable" $?
 
 # 7. GS-ALPHA TCP command gateway (checked from inside Docker via MOC)
-docker exec spaceve1-moc nc -z -w2 192.168.61.20 4820 2>/dev/null
+docker exec spaceve1-moc python -c \
+  "import socket,sys; s=socket.socket(); s.settimeout(2); s.connect(('192.168.61.20',4820)); s.close()" \
+  2>/dev/null
 check "192.168.61.20:4820/tcp (GS-ALPHA command gateway) reachable" $?
 
 echo ""
