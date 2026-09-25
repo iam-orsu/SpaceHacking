@@ -1,100 +1,103 @@
 #!/bin/bash
-# Phase 2 lab setup — multi-network Docker architecture
+# setup_lab.sh — SpaceVE-1 Satellite Hacking Lab
+#
+# Starts the full local lab: 3 satellites, 2 ground stations, MOC dashboard,
+# telemetry database, Prometheus, Grafana, incident-response monitor.
+#
+# Requirements: Docker with compose plugin (docker compose v2)
+# Run from the lab directory: cd lab && bash scripts/setup_lab.sh
+
 set -e
 
-COMPOSE_FILE="$(dirname "$0")/../docker-compose.yml"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LAB_DIR="$(dirname "$SCRIPT_DIR")"
 
-check_deps() {
-  for cmd in docker docker-compose; do
-    if ! command -v "$cmd" &>/dev/null; then
-      echo "ERROR: $cmd not found. Install Docker + docker-compose."
-      exit 1
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+log()  { echo -e "${GREEN}[+]${NC} $*"; }
+warn() { echo -e "${YELLOW}[!]${NC} $*"; }
+err()  { echo -e "${RED}[-]${NC} $*"; exit 1; }
+
+# ---------------------------------------------------------------- preflight
+echo ""
+echo "  SpaceVE-1 Satellite Hacking Lab"
+echo "  ================================"
+echo ""
+
+if ! docker compose version &>/dev/null 2>&1; then
+    err "docker compose not found. Install Docker Desktop or Docker Engine with compose plugin."
+fi
+log "Docker: $(docker --version)"
+
+cd "$LAB_DIR"
+
+if [ ! -f ".env" ]; then
+    warn ".env file not found. Copying from .env.example if available..."
+    if [ -f ".env.example" ]; then
+        cp .env.example .env
+        log ".env created from .env.example"
+    else
+        warn "No .env.example found. Creating minimal .env..."
+        cat > .env <<'EOF'
+DB_PASSWORD=spaceops2024
+NASA_API_KEY=
+NASA_API_URL=https://api.nasa.gov/planetary/earth/imagery
+EOF
+        warn "NASA_API_KEY is empty. Cesium imagery capture requires a free key from api.nasa.gov"
     fi
-  done
-  DOCKER_V=$(docker --version 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
-  echo "Docker: $DOCKER_V"
-}
+fi
 
-print_banner() {
-  echo "=================================================="
-  echo " Orsu Space Agency — C2 Lab v2.0"
-  echo " SpaceVE-1 Constellation — 3 satellites"
-  echo " Networks: spacelab-cmd / spacelab-tlm / spacelab-admin"
-  echo "=================================================="
-}
+# ---------------------------------------------------------------- build + start
+log "Building and starting all services..."
+docker compose up --build -d
 
-pull_images() {
-  echo "[1/5] Pulling base images..."
-  docker pull python:3.11-slim
-  docker pull postgres:15-alpine
-  docker pull prom/prometheus:latest
-  docker pull grafana/grafana:latest
-}
-
-build_services() {
-  echo "[2/5] Building service images..."
-  docker-compose -f "$COMPOSE_FILE" build --parallel
-}
-
-create_networks() {
-  echo "[3/5] Creating Docker networks..."
-  for net in spacelab-cmd spacelab-tlm spacelab-admin; do
-    docker network inspect "$net" &>/dev/null || \
-      docker network create --driver bridge "$net"
-    echo "  $net OK"
-  done
-}
-
-start_services() {
-  echo "[4/5] Starting services..."
-  docker-compose -f "$COMPOSE_FILE" up -d
-
-  echo "Waiting for telemetry-db..."
-  for i in $(seq 1 30); do
-    docker exec spacehacking-telemetry-db-1 pg_isready -U opsuser -d spaceops &>/dev/null && break
+# ---------------------------------------------------------------- wait for db
+log "Waiting for telemetry database..."
+for i in $(seq 1 30); do
+    if docker exec spaceve1-tlmdb pg_isready -U spaceops -d spaceve1 &>/dev/null; then
+        log "Database ready."
+        break
+    fi
     sleep 2
     echo -n "."
-  done
-  echo " DB ready"
-}
+done
+echo ""
 
-print_access() {
-  echo "[5/5] Lab ready."
-  echo ""
-  echo "  Primary MOC:  http://localhost:5000"
-  echo "    admin / admin123"
-  echo "    telemetry.ops / ops123"
-  echo "    command.ops   / ops123"
-  echo ""
-  echo "  Backup MOC:   http://localhost:5001"
-  echo "    (same credentials — shared SECRET_KEY)"
-  echo ""
-  echo "  Grafana:      http://localhost:3000"
-  echo "    admin / admin  (MC-8: default creds)"
-  echo "    anonymous viewer also works (MC-8)"
-  echo ""
-  echo "  Prometheus:   http://localhost:9090"
-  echo ""
-  echo "  GS-1 TCP:     localhost:9001 (auth required)"
-  echo "  GS-2 TCP:     localhost:9002 (MAINTENANCE_MODE — no auth)"
-  echo ""
-  echo "  Attack surface summary:"
-  echo "    MC-1  primary-moc connected to all 3 networks"
-  echo "    MC-2  /api/telemetry/latest — unauthenticated"
-  echo "    MC-3  Hardcoded SECRET_KEY — forge session cookies"
-  echo "    MC-4  MD5 passwords — offline crack from DB dump"
-  echo "    MC-5  SQLi in /c2/telemetry?search="
-  echo "    MC-6  /api/commands/raw — bypasses approval workflow"
-  echo "    MC-7  GS-2 MAINTENANCE_MODE — no auth on backup uplink"
-  echo "    MC-8  Grafana admin/admin + anonymous access"
-  echo ""
-  echo "Run validate_lab.sh to confirm all services are reachable."
-}
+# ---------------------------------------------------------------- show status
+log "Container status:"
+docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 
-print_banner
-check_deps
-pull_images
-build_services
-create_networks
-start_services
-print_access
+# ---------------------------------------------------------------- access info
+echo ""
+echo "  ============================================================"
+echo "  LAB READY — LOCAL ACCESS ONLY"
+echo "  ============================================================"
+echo ""
+echo "  MOC Dashboard     http://localhost:8080"
+echo "  MOC WebSocket     ws://localhost:8765       (no auth — MC-MOC-1)"
+echo "  Ground Station    nc localhost 4820         (maintenance mode — MC-GS-3)"
+echo "  Grafana           http://localhost:3000      admin / admin  (MC-GRF-1)"
+echo "  Prometheus        http://localhost:9090"
+echo ""
+echo "  Satellite networks (internal — reach from lab containers):"
+echo "    spacelab-cmd   192.168.61.0/24  (command uplink)"
+echo "    spacelab-tlm   192.168.62.0/24  (telemetry downlink)"
+echo "    spacelab-admin 192.168.63.0/24  (management)"
+echo ""
+echo "  Pentesting tools:  cd lab/tools/"
+echo "    ccsds_packet_forge.py    signal_sniffer.py"
+echo "    ccsds_fuzzer.py          telemetry_decoder.py"
+echo "    ground_station_scanner.py  command_injector.py"
+echo "    ccsds_telemetry_spoofer.py"
+echo ""
+echo "  Attack chain quick-start:"
+echo "    1.  nc localhost 4820"
+echo "    2.  python3 tools/ccsds_packet_forge.py --sat SpaceVE-1A --cmd SAFING_MODE"
+echo "    3.  python3 tools/signal_sniffer.py --ws ws://localhost:8765"
+echo ""
+echo "  Reset:  bash scripts/reset_lab.sh"
+echo "  ============================================================"
+echo ""

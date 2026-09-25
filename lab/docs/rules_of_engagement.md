@@ -2,63 +2,86 @@
 
 ## Scope
 
-This is a self-contained Docker lab running entirely on localhost. All attack and enumeration activity is restricted to:
+This is a self-contained Docker lab running entirely on localhost.
+All attack and enumeration activity is restricted to these local services:
 
-| Target | Ports |
-|--------|-------|
-| Primary MOC | localhost:5000 |
-| Backup MOC | localhost:5001 |
-| Ground Station 1 (TCP) | localhost:9001 |
-| Ground Station 2 (TCP, maintenance) | localhost:9002 |
-| Satellite simulators (UDP) | localhost:8001-8003 |
-| Grafana | localhost:3000 |
-| Prometheus | localhost:9090 |
-| PostgreSQL | localhost:5432 (internal only) |
+| Service | Address | Note |
+|---------|---------|------|
+| MOC Dashboard | http://localhost:8080 | Browser UI |
+| MOC WebSocket | ws://localhost:8765 | TLM feed, no auth |
+| Ground Station GS-BETA | localhost:4820 (TCP) | Maintenance mode, no auth |
+| Ground Station GS-ALPHA | 192.168.61.20:4820 (internal) | Requires password |
+| Satellite SpaceVE-1A | 192.168.61.100:1234 (UDP) | CMD port, no IP filter |
+| Satellite SpaceVE-1B | 192.168.61.101:1234 (UDP) | CMD port, no IP filter |
+| Satellite SpaceVE-1C | 192.168.61.102:1234 (UDP) | CMD port, no IP filter |
+| Grafana | http://localhost:3000 | admin/admin |
+| Prometheus | http://localhost:9090 | Metrics |
+| PostgreSQL | 192.168.62.20:5432 (internal) | spaceops/spaceops2024 |
 
-**DO NOT** attack any system outside this lab. All three Docker networks (spacelab-cmd, spacelab-tlm, spacelab-admin) are bridge networks that do not route to the internet or your LAN.
+**DO NOT** attack any system outside this lab.
+All Docker networks (spacelab-cmd, spacelab-tlm, spacelab-admin) are bridge networks
+that do not route to the internet or your LAN.
 
 ## Authorized Activities
 
-- Web application testing against primary-moc and backup-moc (login bypass, SQLi, CSRF, session tampering)
-- TCP banner grabbing and command injection against ground station ports
-- CCSDS packet forging and replay via ground station relay
-- PostgreSQL enumeration from containers where network access permits
-- Grafana anonymous access exploitation
+- WebSocket telemetry capture from ws://localhost:8765 without authentication
+- TCP banner grabbing and command injection against port 4820
+- CCSDS packet forging and replay against satellite UDP ports
+- Raw CCSDS hex injection via GS-BETA CMD command (no validation)
+- PostgreSQL enumeration from within containers that have network access
+- Grafana anonymous access and admin/admin login exploitation
 - Prometheus metrics enumeration
-- Lateral movement across Docker networks using compromised container credentials
-- Session cookie forgery using the known SECRET_KEY
+- Lateral movement across Docker networks using the MOC (MC-MOC-3)
+- NASA imagery redirection via WebSocket and HTTP endpoints
 
 ## Prohibited Activities
 
 - `--network=host` or bypassing Docker network segmentation from the host OS
-- Modifying Docker daemon configuration
-- Interfering with other user sessions (multi-user systems)
-- Persistent implants outside the lab (no cron jobs, no host-level modifications)
+- Modifying the Docker daemon configuration
+- Persistent implants outside the lab containers
+- Attacking any host or service outside 192.168.61.0/24, 192.168.62.0/24, 192.168.63.0/24
 
 ## Objective Checklist
 
 | # | Objective | Misconfiguration |
 |---|-----------|-----------------|
-| 1 | Enumerate satellite telemetry without credentials | MC-2 |
-| 2 | Forge a valid session cookie | MC-3 |
-| 3 | Crack operator passwords from a DB dump | MC-4 |
-| 4 | Extract mission plan from downlink telemetry | satellite sim |
-| 5 | Execute MEMORY_DUMP bypassing approval workflow | MC-6 |
-| 6 | Send raw REBOOT via maintenance ground station | MC-7 |
-| 7 | Extract the full operators table via SQLi | MC-5 |
-| 8 | Access Grafana dashboard as anonymous viewer | MC-8 |
+| 1 | Subscribe to ws://localhost:8765 without credentials and capture live TLM | MC-MOC-1 |
+| 2 | Connect to GS-BETA port 4820 with no password and issue SENDCMD | MC-GS-3 |
+| 3 | Send a raw CCSDS hex REBOOT packet via CMD command (no validation) | MC-GS-4 |
+| 4 | Replay a captured CCSDS packet using a sequence number outside the window | MC-GS-5 |
+| 5 | Send SAFING_MODE directly to a satellite UDP port bypassing the GS | MC-SAT-1 |
+| 6 | Put all 3 satellites in SAFING_MODE via GS-BETA maintenance console | MC-GS-3 |
+| 7 | Redirect satellite imaging target to a new lat/lon over WebSocket | MC-MOC-5 |
+| 8 | Access Grafana as admin with default credentials | MC-GRF-1 |
+| 9 | Identify that the MOC bridges all 3 network segments | MC-MOC-3 |
 
-## Completion Criteria
+## Attack Chain Quick Start
 
-Complete all 8 objectives and document:
-- The exact HTTP request or network packet that exploited each misconfiguration
-- The data obtained or command executed
-- What a correct control would look like (parameterized query, bcrypt, network ACL, etc.)
+```bash
+# 1. Open MOC dashboard in browser
+open http://localhost:8080
+
+# 2. Subscribe to TLM without auth (MC-MOC-1)
+python3 tools/signal_sniffer.py --ws ws://localhost:8765
+
+# 3. Connect to GS-BETA — no auth needed (MC-GS-3)
+nc localhost 4820
+> HELP
+> LISTCMDS
+> SENDCMD SpaceVE-1A SAFING_MODE
+
+# 4. Forge a CCSDS packet directly to satellite (MC-SAT-1)
+python3 tools/ccsds_packet_forge.py --sat SpaceVE-1A --cmd SAFING_MODE --send
+
+# 5. Redirect imaging target (observe on Cesium globe)
+python3 tools/command_injector.py --redirect --sat SpaceVE-1A --lat -33.8 --lon 151.2
+```
 
 ## Safety Reset
 
 ```bash
-lab/scripts/reset_lab.sh
+cd lab
+bash scripts/reset_lab.sh
 ```
 
-This stops all containers, drops the database, and rebuilds clean. Run it between exercise attempts.
+Stops all containers, removes volumes, and starts clean. Run between exercise attempts.
