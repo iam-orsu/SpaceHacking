@@ -36,6 +36,8 @@ import models
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "spaceve1-weak-secret-key-2024")
 
+_start_time = time.time()
+
 MOC_ID      = os.environ.get("MOC_ID", "PRIMARY")
 CMD_SAT_A   = os.environ.get("CMD_SAT_A", "192.168.61.100")
 CMD_SAT_B   = os.environ.get("CMD_SAT_B", "192.168.61.101")
@@ -284,12 +286,14 @@ def page_command():
 @app.route("/c2/mission")
 @login_required
 def page_mission():
-    satellites = models.get_satellites()
+    satellites  = models.get_satellites()
+    cmd_history = models.get_commands(limit=20)
     with tlm_lock:
         cache = dict(tlm_cache)
     return render_template("mission.html",
         satellites=satellites,
         tlm_cache=cache,
+        cmd_history=cmd_history,
     )
 
 
@@ -306,10 +310,10 @@ def page_network():
 @login_required
 def page_incident():
     incidents = models.get_incidents(limit=100)
-    audit     = models.get_audit_log(limit=100)
+    audit_log = models.get_audit_log(limit=100)
     return render_template("incident.html",
         incidents=incidents,
-        audit=audit,
+        audit_log=audit_log,
     )
 
 
@@ -317,10 +321,23 @@ def page_incident():
 @role_required("ADMIN")
 def page_admin():
     operators = models.list_operators()
-    audit     = models.get_audit_log(limit=50)
+    with tlm_lock:
+        cache_size = len(tlm_cache)
+    try:
+        conn = models.get_conn()
+        conn.close()
+        db_status = "CONNECTED"
+    except Exception:
+        db_status = "UNREACHABLE"
+    uptime_s = int(time.time() - _start_time)
+    h, rem = divmod(uptime_s, 3600)
+    m, s   = divmod(rem, 60)
     return render_template("admin.html",
         operators=operators,
-        audit=audit,
+        db_status=db_status,
+        tlm_cache_size=cache_size,
+        server_uptime=f"{h}h {m}m {s}s",
+        show_create=request.args.get("create") == "1",
     )
 
 
@@ -331,10 +348,11 @@ def admin_create_user():
     username  = request.form["username"]
     password  = request.form["password"]
     role      = request.form["role"]
+    clearance = request.form.get("clearance_level", "UNCLASSIFIED")
     full_name = request.form.get("full_name", "")
     email     = request.form.get("email", "")
     try:
-        models.create_operator(username, password, role, full_name, email)
+        models.create_operator(username, password, role, full_name, email, clearance)
         models.log_audit(current_op(), "CREATE_USER", username, {"role": role}, request.remote_addr)
         flash(f"Operator {username} created", "success")
     except Exception as e:
@@ -495,6 +513,37 @@ def api_raw_command():
 @login_required
 def api_incidents():
     return jsonify(models.get_incidents(50))
+
+
+@app.route("/api/incidents/<int:inc_id>/status", methods=["POST"])
+@login_required
+def api_incident_status(inc_id):
+    data   = request.get_json(force=True)
+    status = data.get("status", "OPEN")
+    if status not in ("OPEN", "INVESTIGATING", "CLOSED"):
+        return jsonify(error="Invalid status"), 400
+    with models.get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE incidents SET status=%s WHERE id=%s", (status, inc_id))
+            conn.commit()
+    models.log_audit(current_op(), "UPDATE_INCIDENT", str(inc_id),
+                     {"status": status}, request.remote_addr)
+    return jsonify(status=status, id=inc_id)
+
+
+@app.route("/api/admin/operators/<username>/<action>", methods=["POST"])
+@role_required("ADMIN")
+def api_toggle_operator(username, action):
+    if action not in ("enable", "disable"):
+        return jsonify(error="Invalid action"), 400
+    active = action == "enable"
+    with models.get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE operators SET active=%s WHERE username=%s", (active, username))
+            conn.commit()
+    models.log_audit(current_op(), f"{'ENABLE' if active else 'DISABLE'}_OPERATOR",
+                     username, {}, request.remote_addr)
+    return jsonify(status=True, username=username, active=active)
 
 
 @app.route("/api/orbital/<satellite_id>")

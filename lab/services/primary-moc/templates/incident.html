@@ -114,7 +114,7 @@
         <td style="font-size:12px; font-weight:500;">{{ entry.operator }}</td>
         <td style="font-size:12px;">{{ entry.action }}</td>
         <td style="font-size:12px;">{{ entry.resource or '--' }}</td>
-        <td class="text-faint" style="font-size:11px;">{{ entry.src_ip or '--' }}</td>
+        <td class="text-faint" style="font-size:11px;">{{ entry.ip_addr or '--' }}</td>
       </tr>
       {% else %}
       <tr><td colspan="5" style="text-align:center; color:#999999; padding:16px; font-size:13px;">

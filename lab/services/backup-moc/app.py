@@ -17,8 +17,15 @@ app = Flask(__name__)
 # intentional: hardcoded, same as primary-moc
 app.secret_key = os.environ.get("SECRET_KEY", "spaceve1-weak-secret-key-2024")
 
-DB_DSN = os.environ.get("DATABASE_URL",
-    "host=telemetry-db dbname=spaceops user=opsuser password=ops_pass_2024")
+_DB_HOST = os.environ.get("DB_HOST", "telemetry-db")
+_DB_PORT = os.environ.get("DB_PORT", "5432")
+_DB_NAME = os.environ.get("DB_NAME", "spaceve1")
+_DB_USER = os.environ.get("DB_USER", "spaceops")
+_DB_PASS = os.environ.get("DB_PASS", "spaceops2024")
+DB_DSN = os.environ.get(
+    "DATABASE_URL",
+    f"host={_DB_HOST} port={_DB_PORT} dbname={_DB_NAME} user={_DB_USER} password={_DB_PASS}"
+)
 
 
 def get_conn():
@@ -56,7 +63,7 @@ def login():
             conn = get_conn()
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(
-                    "SELECT * FROM operators WHERE username=%s AND password_hash=%s AND active=true",
+                    "SELECT * FROM operators WHERE username=%s AND password_md5=%s AND active=true",
                     (username, md5pw(password))
                 )
                 op = cur.fetchone()
@@ -126,7 +133,7 @@ def api_cmd_history():
             """)
             rows = cur.fetchall()
         conn.close()
-        return jsonify([dict(r) for r in rows], default=str)
+        return jsonify([dict(r) for r in rows])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

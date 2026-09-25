@@ -22,12 +22,19 @@ import time
 import logging
 import psycopg2
 import psycopg2.extras
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [IDS] %(message)s")
 
-DB_DSN = os.environ.get("DATABASE_URL",
-    "host=telemetry-db dbname=spaceops user=opsuser password=ops_pass_2024")
+_DB_HOST = os.environ.get("DB_HOST", "telemetry-db")
+_DB_PORT = os.environ.get("DB_PORT", "5432")
+_DB_NAME = os.environ.get("DB_NAME", "spaceve1")
+_DB_USER = os.environ.get("DB_USER", "spaceops")
+_DB_PASS = os.environ.get("DB_PASS", "spaceops2024")
+DB_DSN = os.environ.get(
+    "DATABASE_URL",
+    f"host={_DB_HOST} port={_DB_PORT} dbname={_DB_NAME} user={_DB_USER} password={_DB_PASS}"
+)
 
 DETECTION_LAG_S = int(os.environ.get("DETECTION_LAG_S", 600))
 POLL_INTERVAL   = int(os.environ.get("POLL_INTERVAL", 60))
@@ -42,7 +49,7 @@ def get_conn():
 def record_incident(conn, severity, inc_type, satellite_id, description, occurred_at):
     detected_at = occurred_at + timedelta(seconds=DETECTION_LAG_S)
     # Only insert if detection time has passed (simulates the lag)
-    if datetime.utcnow() < detected_at:
+    if datetime.now(timezone.utc) < detected_at:
         return False
     with conn.cursor() as cur:
         cur.execute("""

@@ -149,15 +149,17 @@ CREATE TABLE IF NOT EXISTS command_approvals (
 -- 10-minute detection lag simulated by incident_response service
 -- ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS incidents (
-    id          BIGSERIAL    PRIMARY KEY,
-    severity    VARCHAR(16)  NOT NULL,   -- LOW|MEDIUM|HIGH|CRITICAL
-    type        VARCHAR(64)  NOT NULL,   -- UNAUTH_COMMAND|BRUTE_FORCE|ANOMALY|etc
-    description TEXT         NOT NULL,
-    source_ip   INET,
+    id           BIGSERIAL    PRIMARY KEY,
+    severity     VARCHAR(16)  NOT NULL,   -- LOW|MEDIUM|HIGH|CRITICAL
+    type         VARCHAR(64)  NOT NULL,   -- UNAUTH_COMMAND|BRUTE_FORCE|ANOMALY|etc
+    description  TEXT         NOT NULL,
+    source_ip    INET,
     satellite_id VARCHAR(32),
     operator_id  VARCHAR(64),
+    occurred_at  TIMESTAMPTZ,
     detected_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     resolved_at  TIMESTAMPTZ,
+    status       VARCHAR(32)  NOT NULL DEFAULT 'OPEN',  -- OPEN|INVESTIGATING|CLOSED
     false_positive BOOLEAN NOT NULL DEFAULT FALSE
 );
 
