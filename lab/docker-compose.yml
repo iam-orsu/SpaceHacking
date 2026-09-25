@@ -78,7 +78,7 @@ services:
     environment:
       POSTGRES_DB: spaceve1
       POSTGRES_USER: spaceops
-      POSTGRES_PASSWORD: spaceops2024
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-spaceops2024}
     volumes:
       - telemetry-db-data:/var/lib/postgresql/data
     networks:
@@ -238,7 +238,7 @@ services:
       DB_PORT: "5432"
       DB_NAME: "spaceve1"
       DB_USER: "spaceops"
-      DB_PASS: "spaceops2024"
+      DB_PASS: ${DB_PASSWORD:-spaceops2024}
       GS1_HOST: "192.168.61.20"
       GS1_PORT: "4820"
       GS1_TOKEN: "gs_alpha_2024"
@@ -277,7 +277,7 @@ services:
       DB_PORT: "5432"
       DB_NAME: "spaceve1"
       DB_USER: "spaceops"
-      DB_PASS: "spaceops2024"
+      DB_PASS: ${DB_PASSWORD:-spaceops2024}
       DETECTION_LAG_S: "600"
       POLL_INTERVAL: "60"
     networks:

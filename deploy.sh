@@ -30,9 +30,13 @@ load_env() {
     set -o allexport
     source "$ENV_FILE"
     set +o allexport
+    # All secrets must be in .env before deploy
     [[ -n "${DOMAIN:-}" ]]      || error "DOMAIN not set in .env"
     [[ -n "${SSL_EMAIL:-}" ]]   || error "SSL_EMAIL not set in .env"
     [[ -n "${DB_PASSWORD:-}" ]] || error "DB_PASSWORD not set in .env"
+    [[ "${DB_PASSWORD}" == "spaceops2024" ]] && error "DB_PASSWORD is still the default. Set a strong password in .env"
+    [[ "${DB_PASSWORD}" == "change_this_strong_password_2024" ]] && error "DB_PASSWORD not changed from .env.example placeholder"
+    [[ ${#DB_PASSWORD} -ge 12 ]] || error "DB_PASSWORD must be at least 12 characters"
     ok "Loaded .env for domain: $DOMAIN"
 }
 
