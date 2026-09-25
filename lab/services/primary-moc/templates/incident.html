@@ -4,34 +4,33 @@
 {% block content %}
 <div class="page-header">
   <span class="page-title">Incident Response</span>
-  <span class="page-sub">IDS alerts — 10-minute detection lag — audit trail</span>
+  <span class="page-sub">IDS alerts | 10-minute detection lag | Audit trail</span>
 </div>
 
-<!-- Summary stats -->
+<!-- Summary -->
 <div class="grid grid-4 mb-8">
-  <div class="stat-box critical" id="box-crit">
+  <div class="stat-box critical">
     <div class="stat-label">Critical</div>
-    <div class="stat-value" id="cnt-critical">{{ incidents|selectattr('severity','eq','CRITICAL')|list|length }}</div>
+    <div class="stat-value">{{ incidents|selectattr('severity','eq','CRITICAL')|list|length }}</div>
   </div>
-  <div class="stat-box warning" id="box-high">
+  <div class="stat-box warning">
     <div class="stat-label">High</div>
-    <div class="stat-value" id="cnt-high">{{ incidents|selectattr('severity','eq','HIGH')|list|length }}</div>
+    <div class="stat-value">{{ incidents|selectattr('severity','eq','HIGH')|list|length }}</div>
   </div>
-  <div class="stat-box" id="box-open">
+  <div class="stat-box blue">
     <div class="stat-label">Open</div>
-    <div class="stat-value" id="cnt-open">{{ incidents|selectattr('status','eq','OPEN')|list|length }}</div>
+    <div class="stat-value">{{ incidents|selectattr('status','eq','OPEN')|list|length }}</div>
   </div>
-  <div class="stat-box nominal" id="box-closed">
-    <div class="stat-label">Closed 24h</div>
-    <div class="stat-value" id="cnt-closed">{{ incidents|selectattr('status','eq','CLOSED')|list|length }}</div>
+  <div class="stat-box nominal">
+    <div class="stat-label">Closed (24h)</div>
+    <div class="stat-value">{{ incidents|selectattr('status','eq','CLOSED')|list|length }}</div>
   </div>
 </div>
 
-<!-- 10-min lag notice -->
-<div style="padding:8px 12px;background:#0a0a1a;border:1px solid #2a2f45;border-left:3px solid var(--warning);margin-bottom:16px;font-size:11px;color:var(--warning);">
-  <strong>IDS NOTE:</strong> Incident detection is subject to a 10-minute analysis lag.
-  Alerts appear here after the detection window expires — attackers have a 600-second
-  head start before this dashboard reflects their activity.
+<div class="alert alert-warning mb-8">
+  <strong>Detection Lag Active:</strong> The IDS has a 10-minute analysis window. Alerts appear here
+  10 minutes after the event. Attackers completing a kill chain have a 600-second head start
+  before this dashboard reflects their activity.
 </div>
 
 <!-- Incident timeline -->
@@ -50,28 +49,28 @@
         <th>Type</th>
         <th>Satellite</th>
         <th>Description</th>
-        <th>Detected At</th>
-        <th>Occurred At</th>
+        <th>Detected</th>
+        <th>Occurred</th>
         <th>Status</th>
         <th>Action</th>
       </tr></thead>
       <tbody>
       {% for inc in incidents %}
-      <tr id="inc-{{ inc.id }}">
-        <td class="mono" style="font-size:11px;">#{{ inc.id }}</td>
+      <tr>
+        <td style="font-size:12px; font-weight:600;">#{{ inc.id }}</td>
         <td>
-          <span class="badge {% if inc.severity in ['CRITICAL','HIGH'] %}critical{% elif inc.severity == 'MEDIUM' %}warning{% else %}nominal{% endif %}">
+          <span class="badge {% if inc.severity in ['CRITICAL','HIGH'] %}critical{% elif inc.severity == 'MEDIUM' %}warning{% else %}info{% endif %}">
             {{ inc.severity }}
           </span>
         </td>
-        <td class="mono" style="font-size:11px;">{{ inc.type }}</td>
-        <td>{{ inc.satellite_id or 'N/A' }}</td>
-        <td style="font-size:11px;max-width:300px;">{{ inc.description }}</td>
-        <td class="mono text-dim" style="font-size:11px;">
-          {{ inc.detected_at.strftime('%H:%M:%S') if inc.detected_at else '—' }}
+        <td style="font-size:12px;">{{ inc.type }}</td>
+        <td style="font-size:12px;">{{ inc.satellite_id or 'N/A' }}</td>
+        <td style="font-size:12px; max-width:280px;">{{ inc.description }}</td>
+        <td class="text-faint" style="font-size:11px;">
+          {{ inc.detected_at.strftime('%H:%M:%S') if inc.detected_at else '--' }}
         </td>
-        <td class="mono text-dim" style="font-size:11px;">
-          {{ inc.occurred_at.strftime('%H:%M:%S') if inc.occurred_at else '—' }}
+        <td class="text-faint" style="font-size:11px;">
+          {{ inc.occurred_at.strftime('%H:%M:%S') if inc.occurred_at else '--' }}
         </td>
         <td>
           <span class="badge {% if inc.status == 'OPEN' %}critical{% elif inc.status == 'INVESTIGATING' %}warning{% else %}nominal{% endif %}">
@@ -80,19 +79,17 @@
         </td>
         <td>
           {% if inc.status == 'OPEN' %}
-          <button class="btn" style="font-size:10px;padding:2px 6px;"
-            onclick="updateInc({{ inc.id }}, 'INVESTIGATING')">INVESTIGATE</button>
+          <button class="btn btn-sm btn-secondary" onclick="updateInc({{ inc.id }}, 'INVESTIGATING')">Investigate</button>
           {% elif inc.status == 'INVESTIGATING' %}
-          <button class="btn" style="font-size:10px;padding:2px 6px;"
-            onclick="updateInc({{ inc.id }}, 'CLOSED')">CLOSE</button>
+          <button class="btn btn-sm" onclick="updateInc({{ inc.id }}, 'CLOSED')">Close</button>
           {% else %}
-          <span class="text-faint" style="font-size:10px;">CLOSED</span>
+          <span class="text-faint" style="font-size:11px;">Closed</span>
           {% endif %}
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="9" style="text-align:center;color:var(--text-faint);padding:20px;font-size:11px;">
-        No incidents recorded. 10-minute detection lag may apply to recent events.
+      <tr><td colspan="9" style="text-align:center; color:#999999; padding:24px; font-size:13px;">
+        No incidents recorded. The 10-minute detection lag may apply to recent events.
       </td></tr>
       {% endfor %}
       </tbody>
@@ -102,7 +99,7 @@
 
 <!-- Audit log -->
 <div class="panel">
-  <div class="panel-header">Audit Log — Last 50 Events</div>
+  <div class="panel-header">Audit Log - Last 50 Events</div>
   <div class="panel-body" style="padding:0;">
     <table class="data-table">
       <thead><tr>
@@ -111,17 +108,17 @@
       <tbody>
       {% for entry in audit_log %}
       <tr>
-        <td class="mono text-dim" style="font-size:11px;">
-          {{ entry.ts.strftime('%H:%M:%S') if entry.ts else '—' }}
+        <td class="text-faint" style="font-size:11px;">
+          {{ entry.ts.strftime('%H:%M:%S') if entry.ts else '--' }}
         </td>
-        <td class="mono" style="font-size:11px;">{{ entry.operator }}</td>
-        <td style="font-size:11px;">{{ entry.action }}</td>
-        <td class="mono" style="font-size:11px;">{{ entry.resource or '—' }}</td>
-        <td class="mono text-dim" style="font-size:11px;">{{ entry.src_ip or '—' }}</td>
+        <td style="font-size:12px; font-weight:500;">{{ entry.operator }}</td>
+        <td style="font-size:12px;">{{ entry.action }}</td>
+        <td style="font-size:12px;">{{ entry.resource or '--' }}</td>
+        <td class="text-faint" style="font-size:11px;">{{ entry.src_ip or '--' }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="5" style="text-align:center;color:var(--text-faint);padding:12px;font-size:11px;">
-        No audit entries
+      <tr><td colspan="5" style="text-align:center; color:#999999; padding:16px; font-size:13px;">
+        No audit entries.
       </td></tr>
       {% endfor %}
       </tbody>
@@ -136,14 +133,12 @@ function updateInc(id, status) {
   fetch('/api/incidents/' + id + '/status', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ status: status })
+    body: JSON.stringify({status: status})
   }).then(r => r.json()).then(d => {
     if (d.status) location.reload();
     else alert('Error: ' + d.error);
   });
 }
-
-// Auto-refresh every 30s to catch new IDS alerts post-lag
 setTimeout(() => location.reload(), 30000);
 </script>
 {% endblock %}

@@ -4,45 +4,45 @@
 {% block content %}
 <div class="page-header">
   <span class="page-title">Mission Planning</span>
-  <span class="page-sub">Pass scheduler / ops timeline / constellation geometry</span>
+  <span class="page-sub">Pass schedule | Constellation geometry | Operations timeline</span>
 </div>
 
-<!-- Constellation geometry overview -->
+<!-- Constellation geometry -->
 <div class="grid grid-3 mb-8">
   {% for sat in satellites %}
   {% set tlm = tlm_cache.get(sat.name, {}) %}
   {% set orb = tlm.get('orbital', {}) %}
   {% set comms = tlm.get('comms', {}) %}
   <div class="panel">
-    <div class="panel-header">{{ sat.name }}</div>
+    <div class="panel-header" style="background:#e3f2fd;">{{ sat.name }}</div>
     <div class="panel-body">
       <div class="status-row">
         <span class="status-key">Inclination</span>
-        <span class="status-value mono">{{ sat.inclination_deg|default('—') }}°</span>
+        <span class="status-val">{{ sat.inclination_deg | default('--') }} deg</span>
       </div>
       <div class="status-row">
         <span class="status-key">RAAN</span>
-        <span class="status-value mono">{{ sat.raan_deg|default('—') }}°</span>
+        <span class="status-val">{{ sat.raan_deg | default('--') }} deg</span>
       </div>
       <div class="status-row">
-        <span class="status-key">Current Lat/Lon</span>
-        <span class="status-value mono" id="pos-{{ sat.name }}">
+        <span class="status-key">Current Position</span>
+        <span class="status-val" id="pos-{{ sat.name }}">
           {% if orb.get('lat') is not none %}
-          {{ "%.2f"|format(orb.lat) }}° / {{ "%.2f"|format(orb.lon) }}°
-          {% else %}—{% endif %}
+          {{ "%.2f"|format(orb.lat) }} / {{ "%.2f"|format(orb.lon) }}
+          {% else %}--{% endif %}
         </span>
       </div>
       <div class="status-row">
-        <span class="status-key">Eclipse</span>
-        <span class="status-value {% if orb.get('eclipse') %}text-warning{% else %}text-nominal{% endif %}">
-          {{ "ECLIPSE" if orb.get('eclipse') else "SUNLIT" }}
+        <span class="status-key">Sun Status</span>
+        <span class="status-val {% if orb.get('eclipse') %}text-warning{% else %}text-nominal{% endif %}">
+          {{ "In Eclipse" if orb.get('eclipse') else "Sunlit" }}
         </span>
       </div>
       <div class="status-row">
-        <span class="status-key">In Contact With</span>
-        <span class="status-value mono">
+        <span class="status-key">Ground Contact</span>
+        <span class="status-val">
           {% set contact = comms.get('in_contact_with', []) %}
-          {{ contact|join(', ') if contact else 'NONE' }}
+          {{ contact|join(', ') if contact else 'None' }}
         </span>
       </div>
     </div>
@@ -50,24 +50,22 @@
   {% endfor %}
 </div>
 
-<!-- Upcoming passes table -->
+<!-- Upcoming passes -->
 <div class="panel mb-8">
-  <div class="panel-header">Upcoming Ground Station Passes — Next 6000s</div>
+  <div class="panel-header">Upcoming Ground Station Passes - Next 6000 Seconds</div>
   <div class="panel-body" style="padding:0;">
     <table class="data-table">
       <thead><tr>
         <th>Satellite</th>
         <th>Ground Station</th>
-        <th>AOS (sim offset)</th>
-        <th>LOS (sim offset)</th>
+        <th>AOS Offset</th>
+        <th>LOS Offset</th>
         <th>Duration</th>
         <th>Max Elevation</th>
-        <th>Doppler Shift</th>
-        <th>Link Margin</th>
         <th>Status</th>
       </tr></thead>
       <tbody id="passes-tbody">
-        <tr><td colspan="9" style="text-align:center;color:var(--text-faint);padding:12px;font-size:11px;">
+        <tr><td colspan="7" style="text-align:center; color:#999999; padding:16px; font-size:13px;">
           Loading contact windows...
         </td></tr>
       </tbody>
@@ -75,9 +73,9 @@
   </div>
 </div>
 
-<!-- Ops timeline -->
+<!-- Operations timeline -->
 <div class="panel mb-8">
-  <div class="panel-header">Operations Timeline — Active Commands</div>
+  <div class="panel-header">Operations Timeline</div>
   <div class="panel-body" style="padding:0;">
     <table class="data-table">
       <thead><tr>
@@ -86,19 +84,21 @@
       <tbody>
       {% for cmd in cmd_history %}
       <tr>
-        <td class="mono" style="font-size:11px;">
-          {{ cmd.submitted_at.strftime('%H:%M:%S') if cmd.submitted_at else '—' }}
+        <td class="text-faint" style="font-size:12px;">
+          {{ cmd.submitted_at.strftime('%H:%M:%S') if cmd.submitted_at else '--' }}
         </td>
-        <td>{{ cmd.satellite_id }}</td>
-        <td class="mono" style="font-size:11px;">{{ cmd.func_name }}</td>
-        <td>{{ cmd.submitted_by }}</td>
-        <td><span class="badge {% if cmd.status == 'EXECUTED' %}executed{% elif cmd.status == 'PENDING' %}pending{% elif cmd.status == 'REJECTED' %}critical{% else %}nominal{% endif %}">
-          {{ cmd.status }}
-        </span></td>
+        <td style="font-size:12px;">{{ cmd.satellite_id }}</td>
+        <td style="font-size:12px;">{{ cmd.func_name }}</td>
+        <td style="font-size:12px;">{{ cmd.submitted_by }}</td>
+        <td>
+          <span class="badge {% if cmd.status == 'EXECUTED' %}executed{% elif cmd.status == 'PENDING' %}pending{% elif cmd.status == 'REJECTED' %}critical{% else %}info{% endif %}">
+            {{ cmd.status }}
+          </span>
+        </td>
       </tr>
       {% else %}
-      <tr><td colspan="5" style="text-align:center;color:var(--text-faint);padding:12px;font-size:11px;">
-        No command history
+      <tr><td colspan="5" style="text-align:center; color:#999999; padding:16px; font-size:13px;">
+        No command history.
       </td></tr>
       {% endfor %}
       </tbody>
@@ -106,61 +106,57 @@
   </div>
 </div>
 
-<!-- Pentest scenario: mission plan classification notice -->
-<div style="padding:8px 12px;background:#0a1208;border:1px solid #1a3010;border-left:3px solid var(--nominal);margin-bottom:16px;font-size:11px;color:#80c080;">
-  <strong>TRAINING NOTE:</strong> Mission plan data (classification: CONFIDENTIAL) is transmitted
-  in cleartext when DOWNLINK_ENABLE is active. Navigate to Telemetry → SpaceVE-1A and send
-  func 0x03 to observe the data leak.
+<div class="alert alert-info" style="font-size:13px;">
+  <strong>Training Note:</strong> Mission plan data (classification: CONFIDENTIAL) is transmitted
+  in cleartext when DOWNLINK_ENABLE is active on any satellite. Go to Telemetry and send
+  function code 0x03 to observe the data disclosure.
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 function loadPasses() {
-  fetch('/api/telemetry/latest')
-    .then(r => r.json())
-    .then(data => {
-      const rows = [];
-      for (const [satName, tlm] of Object.entries(data)) {
-        const wins = tlm.contact_windows || [];
-        wins.forEach(w => {
-          rows.push({ sat: satName, gs: w.gs, aos: w.aos_sim_offset_s,
-            los: w.los_sim_offset_s, dur: w.duration_s,
-            el: w.max_elevation_deg,
-            doppler: (tlm.comms||{}).doppler_hz || 0,
-            margin: (tlm.comms||{}).link_margin_db || 0 });
+  fetch('/api/telemetry/latest').then(r => r.json()).then(data => {
+    const rows = [];
+    for (const [satName, tlm] of Object.entries(data)) {
+      (tlm.contact_windows || []).forEach(w => {
+        rows.push({
+          sat: satName, gs: w.gs,
+          aos: w.aos_sim_offset_s, los: w.los_sim_offset_s,
+          dur: w.duration_s, el: w.max_elevation_deg
         });
-      }
-      rows.sort((a,b) => a.aos - b.aos);
-      const tbody = document.getElementById('passes-tbody');
-      if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-faint);padding:12px;">No upcoming passes</td></tr>';
-        return;
-      }
-      tbody.innerHTML = rows.map(r => {
-        const sign = s => s >= 0 ? '+' + Math.floor(s) : Math.floor(s);
-        const now = r.aos <= 0 ? '<span class="text-nominal">IN CONTACT</span>' : '<span class="text-dim">scheduled</span>';
-        return `<tr>
-          <td>${r.sat}</td>
-          <td>${r.gs}</td>
-          <td class="mono">${sign(r.aos)}s</td>
-          <td class="mono">${sign(r.los)}s</td>
-          <td class="mono">${r.dur}s</td>
-          <td class="mono">${r.el}°</td>
-          <td class="mono">${r.doppler > 0 ? '+' : ''}${r.doppler} Hz</td>
-          <td class="mono">${r.margin} dB</td>
-          <td>${now}</td>
-        </tr>`;
-      }).join('');
+      });
+    }
+    rows.sort((a,b) => a.aos - b.aos);
 
-      // Update position displays
-      for (const [satName, tlm] of Object.entries(data)) {
-        const orb = tlm.orbital || {};
-        const el = document.getElementById('pos-' + satName);
-        if (el && orb.lat != null)
-          el.textContent = orb.lat.toFixed(2) + '° / ' + orb.lon.toFixed(2) + '°';
-      }
-    });
+    const tbody = document.getElementById('passes-tbody');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#999999; padding:16px; font-size:13px;">No upcoming passes.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(r => {
+      const sign = s => s >= 0 ? '+' + Math.floor(s) : String(Math.floor(s));
+      const status = r.aos <= 0
+        ? '<span class="badge nominal">In Contact</span>'
+        : '<span class="badge info">Scheduled</span>';
+      return `<tr>
+        <td style="font-size:12px;">${r.sat}</td>
+        <td style="font-size:12px;">${r.gs}</td>
+        <td class="text-sec" style="font-size:12px;">${sign(r.aos)}s</td>
+        <td class="text-sec" style="font-size:12px;">${sign(r.los)}s</td>
+        <td style="font-size:12px;">${r.dur}s</td>
+        <td style="font-size:12px;">${r.el}&deg;</td>
+        <td>${status}</td>
+      </tr>`;
+    }).join('');
+
+    for (const [satName, tlm] of Object.entries(data)) {
+      const orb = tlm.orbital || {};
+      const el  = document.getElementById('pos-' + satName);
+      if (el && orb.lat != null)
+        el.textContent = orb.lat.toFixed(2) + ' / ' + orb.lon.toFixed(2);
+    }
+  }).catch(() => {});
 }
 
 loadPasses();

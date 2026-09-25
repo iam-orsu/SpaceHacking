@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Telemetry — {{ selected_sat }}{% endblock %}
+{% block title %}Telemetry | {{ selected_sat }}{% endblock %}
 {% block head_extra %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 {% endblock %}
@@ -7,10 +7,9 @@
 {% block content %}
 <div class="page-header">
   <span class="page-title">Telemetry Viewer</span>
-  <span class="page-sub">Real-time subsystem monitoring — 500ms refresh</span>
+  <span class="page-sub">Real-time subsystem data | 500 ms refresh</span>
 </div>
 
-<!-- Satellite selector -->
 <div class="sat-tabs">
   {% for sat in satellites %}
   <a href="/c2/telemetry?sat={{ sat.name }}"
@@ -20,93 +19,89 @@
   {% endfor %}
 </div>
 
-<!-- Live subsystem stats (auto-updates via JS) -->
+<!-- Live stats -->
 <div class="grid grid-4 mb-8" id="live-stats">
-  <div class="stat-box" id="box-soc">
+  <div class="stat-box blue" id="box-soc">
     <div class="stat-label">Battery SoC</div>
-    <div class="stat-value" id="val-soc">—<span class="stat-unit">%</span></div>
+    <div class="stat-value" id="val-soc">--<span class="stat-unit">%</span></div>
   </div>
-  <div class="stat-box" id="box-v">
+  <div class="stat-box blue" id="box-v">
     <div class="stat-label">Bus Voltage</div>
-    <div class="stat-value" id="val-v">—<span class="stat-unit">V</span></div>
+    <div class="stat-value" id="val-v">--<span class="stat-unit">V</span></div>
   </div>
-  <div class="stat-box" id="box-solar">
+  <div class="stat-box blue" id="box-solar">
     <div class="stat-label">Solar Current</div>
-    <div class="stat-value" id="val-solar">—<span class="stat-unit">A</span></div>
+    <div class="stat-value" id="val-solar">--<span class="stat-unit">A</span></div>
   </div>
-  <div class="stat-box" id="box-power">
+  <div class="stat-box blue" id="box-power">
     <div class="stat-label">Power Draw</div>
-    <div class="stat-value" id="val-power">—<span class="stat-unit">W</span></div>
+    <div class="stat-value" id="val-power">--<span class="stat-unit">W</span></div>
   </div>
 </div>
 
 <div class="grid grid-4 mb-8">
-  <div class="stat-box" id="box-tbatt">
-    <div class="stat-label">Temp Battery</div>
-    <div class="stat-value" id="val-tbatt">—<span class="stat-unit">°C</span></div>
+  <div class="stat-box blue" id="box-tbatt">
+    <div class="stat-label">Temp (Battery)</div>
+    <div class="stat-value" id="val-tbatt">--<span class="stat-unit">C</span></div>
   </div>
-  <div class="stat-box" id="box-txpdr">
-    <div class="stat-label">Temp Transponder</div>
-    <div class="stat-value" id="val-txpdr">—<span class="stat-unit">°C</span></div>
+  <div class="stat-box blue" id="box-txpdr">
+    <div class="stat-label">Temp (Transponder)</div>
+    <div class="stat-value" id="val-txpdr">--<span class="stat-unit">C</span></div>
   </div>
-  <div class="stat-box" id="box-cpu">
+  <div class="stat-box blue" id="box-cpu">
     <div class="stat-label">CPU Load</div>
-    <div class="stat-value" id="val-cpu">—<span class="stat-unit">%</span></div>
+    <div class="stat-value" id="val-cpu">--<span class="stat-unit">%</span></div>
   </div>
-  <div class="stat-box" id="box-rssi">
+  <div class="stat-box blue" id="box-rssi">
     <div class="stat-label">Uplink RSSI</div>
-    <div class="stat-value" id="val-rssi">—<span class="stat-unit">dBm</span></div>
+    <div class="stat-value" id="val-rssi">--<span class="stat-unit">dBm</span></div>
   </div>
 </div>
 
-<!-- Charts row -->
+<!-- Charts -->
 <div class="grid grid-2 mb-8">
   <div class="panel">
-    <div class="panel-header">Battery SoC — Last 120 Points</div>
+    <div class="panel-header">Battery SoC History</div>
     <div class="panel-body">
-      <div class="chart-container">
-        <canvas id="chart-soc"></canvas>
-      </div>
+      <div class="chart-container"><canvas id="chart-soc"></canvas></div>
     </div>
   </div>
   <div class="panel">
-    <div class="panel-header">Temperature — Battery / Transponder / Payload</div>
+    <div class="panel-header">Temperature History</div>
     <div class="panel-body">
-      <div class="chart-container">
-        <canvas id="chart-temp"></canvas>
-      </div>
+      <div class="chart-container"><canvas id="chart-temp"></canvas></div>
     </div>
   </div>
 </div>
 
-<!-- Orbital state + contact -->
+<!-- Orbital state + contact windows -->
 <div class="grid grid-2 mb-8">
   <div class="panel">
     <div class="panel-header">Orbital State</div>
     <div class="panel-body">
       <div class="status-row">
         <span class="status-key">Latitude / Longitude</span>
-        <span class="status-value" id="val-pos">—</span>
+        <span class="status-val" id="val-pos">--</span>
       </div>
       <div class="status-row">
         <span class="status-key">Altitude</span>
-        <span class="status-value" id="val-alt">—</span>
+        <span class="status-val" id="val-alt">--</span>
       </div>
       <div class="status-row">
-        <span class="status-key">Eclipse</span>
-        <span class="status-value" id="val-eclipse">—</span>
+        <span class="status-key">Sun Status</span>
+        <span class="status-val" id="val-eclipse">--</span>
       </div>
       <div class="status-row">
         <span class="status-key">Attitude Mode</span>
-        <span class="status-value" id="val-att-mode">—</span>
+        <span class="status-val" id="val-att-mode">--</span>
       </div>
       <div class="status-row">
         <span class="status-key">Angular Rate X</span>
-        <span class="status-value" id="val-rate">—</span>
+        <span class="status-val" id="val-rate">--</span>
       </div>
       <div class="status-row">
         <span class="status-key">Ground Contact</span>
-        <span class="status-value" id="val-contact">—</span>
+        <span class="status-val" id="val-contact">--</span>
       </div>
     </div>
   </div>
@@ -114,12 +109,12 @@
   <div class="panel">
     <div class="panel-header">Upcoming Contact Windows</div>
     <div class="panel-body" style="padding:0;">
-      <table class="data-table" id="contact-table">
+      <table class="data-table">
         <thead><tr>
-          <th>Ground Station</th><th>AOS (sim)</th><th>Duration</th><th>Max El.</th>
+          <th>Ground Station</th><th>AOS Offset</th><th>Duration</th><th>Max Elevation</th>
         </tr></thead>
         <tbody id="contact-tbody">
-          <tr><td colspan="4" style="color:var(--text-faint);text-align:center;padding:10px;">Loading...</td></tr>
+          <tr><td colspan="4" style="text-align:center; color:#999999; padding:14px; font-size:13px;">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -130,57 +125,60 @@
 <div class="panel mb-8">
   <div class="panel-header">Payload Status</div>
   <div class="panel-body">
-    <div class="grid grid-3">
-      <div class="status-row">
-        <span class="status-key">Camera</span>
-        <span class="status-value" id="val-camera">—</span>
+    <div class="grid grid-3" style="gap:12px;">
+      <div>
+        <div class="status-key" style="margin-bottom:4px;">Camera</div>
+        <div id="val-camera" class="status-val">--</div>
       </div>
-      <div class="status-row">
-        <span class="status-key">Downlink</span>
-        <span class="status-value" id="val-downlink">—</span>
+      <div>
+        <div class="status-key" style="margin-bottom:4px;">Downlink</div>
+        <div id="val-downlink" class="status-val">--</div>
       </div>
-      <div class="status-row">
-        <span class="status-key">Memory Dump</span>
-        <span class="status-value" id="val-memdump">—</span>
+      <div>
+        <div class="status-key" style="margin-bottom:4px;">Memory Dump</div>
+        <div id="val-memdump" class="status-val">--</div>
       </div>
     </div>
-    <!-- Mission plan data — only visible when downlink enabled -->
-    <div id="mission-plan-alert" style="display:none;margin-top:10px;padding:8px 12px;background:#1a0808;border:1px solid #5a1010;border-left:3px solid var(--critical);">
-      <div style="font-size:10px;letter-spacing:2px;color:var(--critical);margin-bottom:8px;">
-        ⚠ MISSION PLAN DATA IN DOWNLINK — UNENCRYPTED
+    <div id="mission-plan-alert" style="display:none; margin-top:16px;" class="alert alert-warning">
+      <div>
+        <strong>Mission Plan Data in Downlink - Unencrypted</strong>
+        <pre id="mission-plan-content" style="margin-top:8px; font-family:'Poppins',sans-serif; font-size:12px; white-space:pre-wrap; line-height:1.6;"></pre>
       </div>
-      <div id="mission-plan-content" style="font-size:12px;color:#f08080;line-height:1.8;"></div>
     </div>
   </div>
 </div>
 
-<!-- Telemetry search (SQL injectable) -->
+<!-- Telemetry log search (SQL injection target) -->
 <div class="panel mb-8">
   <div class="panel-header">Telemetry Log Search</div>
   <div class="panel-body">
     <form method="GET" action="/c2/telemetry">
       <input type="hidden" name="sat" value="{{ selected_sat }}">
       <div class="form-row">
-        <div class="form-group">
-          <label>Search Mode Field</label>
-          <input type="text" name="search" value="{{ search }}" placeholder="NOMINAL" style="width:240px;">
+        <div class="form-group" style="flex:1; margin-bottom:0;">
+          <label>Search by Mode Field</label>
+          <input type="text" name="search" value="{{ search }}" placeholder="e.g. NOMINAL">
         </div>
-        <button type="submit" class="btn">Search</button>
+        <button type="submit" class="btn" style="margin-top:20px;">Search</button>
       </div>
     </form>
     {% if search_results %}
-    <table class="data-table mt-8">
-      <thead><tr><th>Timestamp</th><th>Mode</th><th>Battery SoC</th></tr></thead>
-      <tbody>
-      {% for r in search_results %}
-      <tr>
-        <td>{{ r.ts }}</td>
-        <td>{{ r.mode }}</td>
-        <td>{{ r.battery_soc }}</td>
-      </tr>
-      {% endfor %}
-      </tbody>
-    </table>
+    <div style="margin-top:16px;">
+      <table class="data-table">
+        <thead><tr><th>Timestamp</th><th>Mode</th><th>Battery SoC</th></tr></thead>
+        <tbody>
+        {% for r in search_results %}
+        <tr>
+          <td>{{ r.ts }}</td>
+          <td>{{ r.mode }}</td>
+          <td>{{ r.battery_soc }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif search %}
+    <div style="margin-top:12px; font-size:13px; color:#999999;">No results found for "{{ search }}".</div>
     {% endif %}
   </div>
 </div>
@@ -190,143 +188,144 @@
 <script>
 const SAT = '{{ selected_sat }}';
 let socChart, tempChart;
-const socData  = { labels: [], datasets: [{ label:'SoC %', data:[], borderColor:'#4CAF50', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false }] };
-const tempData = {
-  labels: [],
-  datasets: [
-    { label:'Battery', data:[], borderColor:'#1976D2', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false },
-    { label:'Xpdr',    data:[], borderColor:'#ff9800', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false },
-    { label:'Payload', data:[], borderColor:'#9c27b0', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false },
-  ]
-};
-const CHART_CFG = {
-  responsive: true, maintainAspectRatio: false,
-  plugins: { legend: { labels: { color:'#8891b0', font:{ family:"'Courier New', monospace", size:10 } } } },
+
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { labels: { color:'#555555', font:{ family:"'Poppins',sans-serif", size:11 } } }
+  },
   scales: {
-    x: { ticks: { color:'#4a5070', maxTicksLimit:8, font:{size:9} }, grid:{ color:'#1e2340' } },
-    y: { ticks: { color:'#8891b0', font:{size:10} }, grid:{ color:'#1e2340' } }
+    x: { ticks:{ color:'#aaaaaa', maxTicksLimit:8, font:{size:10} }, grid:{ color:'#f0f0f0' } },
+    y: { ticks:{ color:'#555555', font:{size:11} }, grid:{ color:'#f0f0f0' } }
   }
 };
 
-window.addEventListener('DOMContentLoaded', function() {
-  socChart  = new Chart(document.getElementById('chart-soc'),  { type:'line', data:socData,  options:{ ...CHART_CFG, plugins:{ ...CHART_CFG.plugins, tooltip:{ mode:'index' } } } });
-  tempChart = new Chart(document.getElementById('chart-temp'), { type:'line', data:tempData, options:{ ...CHART_CFG } });
+const socData = {
+  labels: [],
+  datasets: [{ label:'SoC %', data:[], borderColor:'#0b3d91', backgroundColor:'rgba(11,61,145,0.05)', borderWidth:2, pointRadius:0, fill:true, tension:0.3 }]
+};
 
-  // Init with historical data
-  fetch('/api/telemetry/' + SAT + '?limit=120')
-    .then(r => r.json()).then(rows => {
-      rows.reverse().forEach(r => {
-        const lbl = new Date(r.ts).toISOString().slice(11,19);
-        socData.labels.push(lbl);
-        socData.datasets[0].data.push(r.battery_soc);
-        tempData.labels.push(lbl);
-        tempData.datasets[0].data.push(r.temp_battery);
-        tempData.datasets[1].data.push(r.temp_xpdr);
-        tempData.datasets[2].data.push(r.temp_payload);
-      });
-      socChart.update('none');
-      tempChart.update('none');
+const tempData = {
+  labels: [],
+  datasets: [
+    { label:'Battery', data:[], borderColor:'#388e3c', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false },
+    { label:'Transponder', data:[], borderColor:'#ff6600', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false },
+    { label:'Payload', data:[], borderColor:'#8e24aa', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false },
+  ]
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+  socChart  = new Chart(document.getElementById('chart-soc'),  { type:'line', data:socData,  options:chartDefaults });
+  tempChart = new Chart(document.getElementById('chart-temp'), { type:'line', data:tempData, options:chartDefaults });
+
+  fetch('/api/telemetry/' + SAT + '?limit=120').then(r => r.json()).then(rows => {
+    rows.reverse().forEach(r => {
+      const lbl = new Date(r.ts).toISOString().slice(11,19);
+      socData.labels.push(lbl);
+      socData.datasets[0].data.push(r.battery_soc);
+      tempData.labels.push(lbl);
+      tempData.datasets[0].data.push(r.temp_battery);
+      tempData.datasets[1].data.push(r.temp_xpdr);
+      tempData.datasets[2].data.push(r.temp_payload);
     });
+    socChart.update('none');
+    tempChart.update('none');
+  }).catch(() => {});
 
   setInterval(updateLive, 500);
 });
 
 function updateLive() {
-  fetch('/api/telemetry/latest')
-    .then(r => r.json()).then(data => {
-      const tlm = data[SAT];
-      if (!tlm) return;
-      const pw = tlm.power || {};
-      const th = tlm.thermal || {};
-      const orb = tlm.orbital || {};
-      const att = tlm.attitude || {};
-      const com = tlm.comms || {};
-      const pay = tlm.payload || {};
-      const hth = tlm.health || {};
+  fetch('/api/telemetry/latest').then(r => r.json()).then(data => {
+    const tlm = data[SAT];
+    if (!tlm) return;
+    const pw  = tlm.power    || {};
+    const th  = tlm.thermal  || {};
+    const orb = tlm.orbital  || {};
+    const att = tlm.attitude || {};
+    const com = tlm.comms    || {};
+    const pay = tlm.payload  || {};
+    const hth = tlm.health   || {};
 
-      // Stats
-      setVal('val-soc',   pw.battery_soc_pct,  1, '%');
-      setVal('val-v',     pw.battery_v,         2, 'V',  v => v < 25 ? 'critical' : v < 27 ? 'warning' : 'nominal');
-      setVal('val-solar', pw.solar_current_a,   2, 'A');
-      setVal('val-power', pw.power_consumption_w, 1, 'W');
-      setVal('val-tbatt', th.battery_c,  1, '°C', v => v < -20 || v > 40 ? 'critical' : 'nominal');
-      setVal('val-txpdr', th.transponder_c, 1, '°C', v => v > 65 ? 'critical' : v > 55 ? 'warning' : 'nominal');
-      setVal('val-cpu',   hth.cpu_load_pct, 1, '%', v => v > 80 ? 'critical' : v > 60 ? 'warning' : 'nominal');
-      setVal('val-rssi',  com.uplink_rssi_dbm, 1, 'dBm');
+    setVal('val-soc',   pw.battery_soc_pct,     1, '%', v => v < 30 ? 'critical' : v < 50 ? 'warning' : 'nominal');
+    setVal('val-v',     pw.battery_v,            2, 'V', v => v < 25 ? 'critical' : v < 27 ? 'warning' : 'nominal');
+    setVal('val-solar', pw.solar_current_a,      2, 'A', null);
+    setVal('val-power', pw.power_consumption_w,  1, 'W', null);
+    setVal('val-tbatt', th.battery_c,            1, 'C', v => v < -20 || v > 40 ? 'critical' : 'nominal');
+    setVal('val-txpdr', th.transponder_c,        1, 'C', v => v > 65 ? 'critical' : v > 55 ? 'warning' : 'nominal');
+    setVal('val-cpu',   hth.cpu_load_pct,        1, '%', v => v > 80 ? 'critical' : v > 60 ? 'warning' : 'nominal');
+    setVal('val-rssi',  com.uplink_rssi_dbm,     1, 'dBm', null);
 
-      // Orbital
-      if (orb.lat != null) {
-        document.getElementById('val-pos').textContent =
-          orb.lat.toFixed(3) + '° / ' + orb.lon.toFixed(3) + '°';
-      }
-      document.getElementById('val-alt').textContent = (orb.alt_km || 0).toFixed(1) + ' km';
-      const eclEl = document.getElementById('val-eclipse');
-      eclEl.textContent = orb.eclipse ? 'ECLIPSE' : 'SUNLIT';
-      eclEl.className = 'status-value ' + (orb.eclipse ? 'text-warning' : 'text-nominal');
-      document.getElementById('val-att-mode').textContent = att.mode || '—';
-      document.getElementById('val-rate').textContent = (att.rate_x_mDeg_s || 0) + ' mdeg/s';
-      const contact = com.in_contact_with || [];
-      const cEl = document.getElementById('val-contact');
-      cEl.textContent = contact.length ? contact.join(', ') : 'NO CONTACT';
-      cEl.className = 'status-value ' + (contact.length ? 'text-nominal' : 'text-dim');
+    if (orb.lat != null)
+      document.getElementById('val-pos').textContent = orb.lat.toFixed(3) + ' / ' + orb.lon.toFixed(3);
+    document.getElementById('val-alt').textContent = (orb.alt_km || 0).toFixed(1) + ' km';
 
-      // Contact windows
-      const wins = tlm.contact_windows || [];
-      const tbody = document.getElementById('contact-tbody');
-      if (wins.length) {
-        tbody.innerHTML = wins.slice(0,5).map(w => {
-          const sign = w.aos_sim_offset_s >= 0 ? '+' : '';
-          return `<tr>
-            <td>${w.gs}</td>
-            <td class="text-dim">${sign}${Math.floor(w.aos_sim_offset_s)}s</td>
-            <td>${w.duration_s}s</td>
-            <td>${w.max_elevation_deg}°</td>
-          </tr>`;
-        }).join('');
-      }
+    const eclEl = document.getElementById('val-eclipse');
+    eclEl.textContent = orb.eclipse ? 'In Eclipse' : 'Sunlit';
+    eclEl.className = 'status-val ' + (orb.eclipse ? 'text-warning' : 'text-nominal');
 
-      // Payload
-      const payStatEl = id => document.getElementById(id);
-      function payBool(v) { return v ? '<span class="text-nominal">ENABLED</span>' : '<span class="text-dim">DISABLED</span>'; }
-      payStatEl('val-camera').innerHTML   = payBool(pay.camera_enabled);
-      payStatEl('val-downlink').innerHTML = payBool(pay.downlink_enabled);
-      payStatEl('val-memdump').innerHTML  = payBool(pay.memory_dump_active);
+    document.getElementById('val-att-mode').textContent = att.mode || '--';
+    document.getElementById('val-rate').textContent = (att.rate_x_mDeg_s || 0) + ' mdeg/s';
 
-      // Mission plan leak
-      const mpAlert = document.getElementById('mission-plan-alert');
-      if (tlm.mission_plan) {
-        mpAlert.style.display = 'block';
-        const mp = tlm.mission_plan;
-        document.getElementById('mission-plan-content').textContent =
-          JSON.stringify(mp, null, 2);
-      } else {
-        mpAlert.style.display = 'none';
-      }
+    const contact = com.in_contact_with || [];
+    const cEl = document.getElementById('val-contact');
+    cEl.textContent = contact.length ? contact.join(', ') : 'No contact';
+    cEl.className = 'status-val ' + (contact.length ? 'text-nominal' : 'text-faint');
 
-      // Chart append
-      const lbl = new Date().toISOString().slice(11,19);
-      if (socData.labels.length > 120) { socData.labels.shift(); socData.datasets[0].data.shift(); }
-      if (tempData.labels.length > 120) {
-        tempData.labels.shift();
-        tempData.datasets.forEach(d => d.data.shift());
-      }
-      socData.labels.push(lbl);
-      socData.datasets[0].data.push(pw.battery_soc_pct);
-      tempData.labels.push(lbl);
-      tempData.datasets[0].data.push(th.battery_c);
-      tempData.datasets[1].data.push(th.transponder_c);
-      tempData.datasets[2].data.push(th.payload_c);
-      socChart.update('none');
-      tempChart.update('none');
-    }).catch(() => {});
+    const wins  = tlm.contact_windows || [];
+    const tbody = document.getElementById('contact-tbody');
+    if (wins.length) {
+      tbody.innerHTML = wins.slice(0,5).map(w => {
+        const sign = w.aos_sim_offset_s >= 0 ? '+' : '';
+        return `<tr>
+          <td>${w.gs}</td>
+          <td class="text-sec">${sign}${Math.floor(w.aos_sim_offset_s)}s</td>
+          <td>${w.duration_s}s</td>
+          <td>${w.max_elevation_deg}&deg;</td>
+        </tr>`;
+      }).join('');
+    }
+
+    const payBool = v => v
+      ? '<span class="badge nominal">Enabled</span>'
+      : '<span class="badge info">Disabled</span>';
+    document.getElementById('val-camera').innerHTML   = payBool(pay.camera_enabled);
+    document.getElementById('val-downlink').innerHTML = payBool(pay.downlink_enabled);
+    document.getElementById('val-memdump').innerHTML  = payBool(pay.memory_dump_active);
+
+    const mpAlert = document.getElementById('mission-plan-alert');
+    if (tlm.mission_plan) {
+      mpAlert.style.display = 'block';
+      document.getElementById('mission-plan-content').textContent = JSON.stringify(tlm.mission_plan, null, 2);
+    } else {
+      mpAlert.style.display = 'none';
+    }
+
+    const lbl = new Date().toISOString().slice(11,19);
+    if (socData.labels.length > 120) { socData.labels.shift(); socData.datasets[0].data.shift(); }
+    if (tempData.labels.length > 120) { tempData.labels.shift(); tempData.datasets.forEach(d => d.data.shift()); }
+    socData.labels.push(lbl);
+    socData.datasets[0].data.push(pw.battery_soc_pct);
+    tempData.labels.push(lbl);
+    tempData.datasets[0].data.push(th.battery_c);
+    tempData.datasets[1].data.push(th.transponder_c);
+    tempData.datasets[2].data.push(th.payload_c);
+    socChart.update('none');
+    tempChart.update('none');
+
+  }).catch(() => {});
 }
 
 function setVal(id, val, dp, unit, classifier) {
-  const el = document.getElementById(id);
+  const el  = document.getElementById(id);
+  const box = document.getElementById(id.replace('val-', 'box-'));
   if (!el) return;
-  if (val == null) { el.innerHTML = '—'; return; }
-  const cls = classifier ? classifier(val) : '';
-  if (cls) el.closest('.stat-box').className = 'stat-box ' + cls;
+  if (val == null) { el.innerHTML = '--'; return; }
+  const cls = classifier ? classifier(val) : null;
+  if (cls && box) {
+    box.className = 'stat-box ' + cls;
+  }
   el.innerHTML = val.toFixed(dp) + '<span class="stat-unit">' + unit + '</span>';
 }
 </script>
