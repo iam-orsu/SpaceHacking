@@ -2,15 +2,19 @@
 CCSDS Space Packet telemetry parser.
 
 Handles:
-  - TM packets from satellites (binary, 32-byte payload)
+  - TM packets from satellites (binary, 36-byte payload with CDS time)
+  - TM[1,1] TC Acceptance packets (PUS-C, 19-byte payload)
   - Mission data packets (APID = primary + 0x100, JSON payload, cleartext — intentional)
 """
 import json
 import struct
 from datetime import datetime, timezone
 
-TLM_FMT  = ">IHHHhHHhhHhhBBH"
-TLM_SIZE = struct.calcsize(TLM_FMT)  # 32
+from cds import cds_decode
+from pus_tm import parse_tm11, TM11_PAYLOAD_SIZE
+
+TLM_FMT  = ">8sHHHhHHhhHhhBBH"
+TLM_SIZE = struct.calcsize(TLM_FMT)  # 36
 
 APID_TO_SAT = {0x200: "SpaceVE-1A", 0x201: "SpaceVE-1B", 0x202: "SpaceVE-1C"}
 MISSION_APID_OFFSET = 0x100
@@ -29,6 +33,8 @@ def parse_tm_packet(data: bytes) -> dict | None:
     payload   = data[6:6 + pkt_data_len + 1]
 
     if apid in APID_TO_SAT:
+        if len(payload) == TM11_PAYLOAD_SIZE:
+            return parse_tm11(apid, seq_count, payload)
         if len(payload) < TLM_SIZE:
             return None
         return _decode_tlm(APID_TO_SAT[apid], apid, seq_count, payload)
@@ -41,17 +47,19 @@ def parse_tm_packet(data: bytes) -> dict | None:
 
 
 def _decode_tlm(satellite_id, apid, seq_count, payload) -> dict:
-    (t, mode_c, bat_soc_pm, bat_mv, solar_ma,
+    (t_cds, mode_c, bat_soc_pm, bat_mv, solar_ma,
      cpu_pm, mem_pm, lat_cdeg, lon_cdeg, alt_dm,
      t_bat, t_xpdr, flags, cmd_code, cmd_count) = struct.unpack_from(TLM_FMT, payload)
+    cds = cds_decode(t_cds)
     return {
-        "packet_type":     "tlm",
-        "satellite_id":    satellite_id,
-        "apid":            apid,
-        "seq_count":       seq_count,
-        "ts":              datetime.now(timezone.utc).isoformat(),
-        "mission_time_s":  t,
-        "mode":            MODES.get(mode_c, f"UNKNOWN_{mode_c}"),
+        "packet_type":      "tlm",
+        "satellite_id":     satellite_id,
+        "apid":             apid,
+        "seq_count":        seq_count,
+        "ts":               datetime.now(timezone.utc).isoformat(),
+        "mission_time_s":   cds["unix"],
+        "mission_time_cds": cds,
+        "mode":             MODES.get(mode_c, f"UNKNOWN_{mode_c}"),
         "battery_soc_pct": round(bat_soc_pm / 10.0, 1),
         "battery_v":       round(bat_mv / 1000.0, 3),
         "solar_a":         round(solar_ma / 1000.0, 3),

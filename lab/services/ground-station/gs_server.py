@@ -25,6 +25,8 @@ import socket
 import struct
 import threading
 
+from pus_tc import build_pus_tc_secondary
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
 
 GS_ID        = os.environ.get("GS_ID", "GS-ALPHA")
@@ -66,10 +68,12 @@ def next_seq(sat: str) -> int:
 
 
 def build_tc(apid: int, fc: int, seq: int) -> bytes:
+    """Build PUS-C TC[128,1] spacecraft function management telecommand."""
     word0 = (1 << 12) | (1 << 11) | (apid & 0x7FF)
     word1 = (0b11 << 14) | (seq & 0x3FFF)
-    sec0  = (fc & 0x7F) << 1
-    return struct.pack(">HHH", word0, word1, 1) + bytes([sec0, 0xFF ^ sec0])
+    # PUS secondary: 5 bytes header + func_code + checksum = 7 bytes -> data_len = 6
+    secondary = build_pus_tc_secondary(svc_type=128, svc_subtype=1, func_code=fc)
+    return struct.pack(">HHH", word0, word1, len(secondary) - 1) + secondary
 
 
 def uplink(sat: str, pkt: bytes) -> tuple:
@@ -180,7 +184,7 @@ def handle_client(conn: socket.socket, addr: tuple):
                     pkt = build_tc(apid, fc, seq)
                     ok, msg = uplink(sat, pkt)
                     if ok:
-                        send(f"OK  CCSDS seq=0x{seq:04X} APID=0x{apid:03X} FC=0x{fc:02X} -> {sat}")
+                        send(f"OK  PUS TC[128,1] seq=0x{seq:04X} APID=0x{apid:03X} FC=0x{fc:02X} -> {sat}")
                     else:
                         send(f"ERR  {msg}")
 

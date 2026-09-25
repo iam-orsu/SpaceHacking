@@ -328,6 +328,21 @@ services:
       - prometheus
 
   # ---------------------------------------------------------------
+  # SATCOM TERMINAL MODEM
+  # Firmware update agent on TCP 9000
+  # MC-MODEM-1: no authentication on update interface
+  # MC-MODEM-2: URL passed to wget with no validation or signature check
+  # MC-MODEM-3: downloaded binary executed immediately, no integrity check
+  # ---------------------------------------------------------------
+  satcom-modem:
+    build: ./services/satcom-modem
+    container_name: spaceve1-satcom
+    restart: unless-stopped
+    networks:
+      spacelab-admin:
+        ipv4_address: 192.168.63.51
+
+  # ---------------------------------------------------------------
   # NETWORK ENFORCER
   # Documents MC-MOC-3: MOC spans all 3 networks (segmentation violation)
   # iptables rules here show INTENT; MOC's multi-homed presence defeats them

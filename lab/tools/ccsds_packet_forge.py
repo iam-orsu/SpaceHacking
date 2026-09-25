@@ -40,6 +40,10 @@ import socket
 import struct
 import sys
 
+# PUS-C TC secondary header constants
+_PUS_VER    = 0x20   # version bits 7:4 = 0b0010 (PUS-C)
+_ACK_ACCEPT = 0x01   # acceptance verification only
+
 
 SATELLITE_APID = 0x200  # SpaceVE-1 primary app ID
 
@@ -61,6 +65,28 @@ def ccsds_checksum(sec_byte0: int, user_data: bytes) -> int:
     for b in user_data:
         cksum ^= b
     return cksum
+
+
+def build_pus_packet(apid: int, func_code: int, seq: int = 0,
+                     svc_type: int = 128, svc_subtype: int = 1,
+                     source_id: int = 0x0001) -> bytes:
+    """
+    Build a PUS-C TC packet (ECSS-E-ST-70-41C).
+    Secondary header: pus_ver_ack(1) + svc_type(1) + svc_subtype(1) + source_id(2)
+    Application data: func_code(1) + checksum(1)
+    Total secondary section: 7 bytes -> data_len = 6
+    """
+    word0     = (0b000 << 13) | (1 << 12) | (1 << 11) | (apid & 0x7FF)
+    word1     = (0b11 << 14) | (seq & 0x3FFF)
+    primary   = struct.pack(">HHH", word0, word1, 6)
+    pus_ver_ack = (_PUS_VER & 0xF0) | (_ACK_ACCEPT & 0x0F)
+    hdr       = struct.pack(">BBBH", pus_ver_ack, svc_type, svc_subtype, source_id)
+    ck = 0xFF
+    for b in hdr:
+        ck ^= b
+    ck ^= func_code
+    secondary = hdr + bytes([func_code, ck])
+    return primary + secondary
 
 
 def build_packet(apid: int, func_code: int, user_data: bytes = b"", seq: int = 0) -> bytes:
@@ -152,8 +178,13 @@ def cmd_send(args):
         print(f"Unknown command: {args.cmd}")
         sys.exit(1)
     func_code, user_data = COMMANDS[args.cmd]
-    pkt = build_packet(SATELLITE_APID, func_code, user_data)
-    print(f"\n  Sending '{args.cmd}' (func=0x{func_code:02X}) to {args.ip}:{args.port}")
+    if args.pus:
+        pkt = build_pus_packet(SATELLITE_APID, func_code)
+        fmt = "PUS-C TC[128,1]"
+    else:
+        pkt = build_packet(SATELLITE_APID, func_code, user_data)
+        fmt = "legacy CCSDS"
+    print(f"\n  Sending '{args.cmd}' (func=0x{func_code:02X}) [{fmt}] to {args.ip}:{args.port}")
     print(f"  Packet: {pkt.hex()}")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(pkt, (args.ip, args.port))
@@ -182,6 +213,8 @@ def main():
     send_p.add_argument("--cmd", default="nop", choices=COMMANDS.keys())
     send_p.add_argument("--ip", default="192.168.60.100")
     send_p.add_argument("--port", type=int, default=1234)
+    send_p.add_argument("--pus", action="store_true",
+                        help="Use PUS-C TC secondary header (matches satellite firmware)")
 
     raw_p = sub.add_parser("raw", help="Send custom APID/func code packet")
     raw_p.add_argument("--apid", default=f"0x{SATELLITE_APID:X}")

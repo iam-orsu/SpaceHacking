@@ -37,6 +37,9 @@ import struct
 import threading
 import time
 
+from cds import cds_now
+from pus_tm import build_tm11
+
 # -----------------------------------------------------------------
 # Configuration from environment
 # -----------------------------------------------------------------
@@ -386,24 +389,40 @@ def ccsds_checksum(sec_byte0: int, user_data: bytes) -> int:
 
 
 def validate_ccsds(data: bytes) -> tuple:
-    """Returns (valid: bool, func_code: int, user_data: bytes)."""
-    if len(data) < 8:
-        return False, 0, b""
+    """
+    Returns (valid, func_code, seq_count, user_data).
+    Parses PUS-C TC secondary header (ECSS-E-ST-70-41C Section 5.3.3):
+      Bytes 6-10: pus_ver_ack, svc_type, svc_subtype, source_id
+      Byte 11:    func_code
+      Byte 12:    checksum
+    """
+    if len(data) < 13:
+        return False, 0, 0, b""
     w0, w1, dlen = struct.unpack(">HHH", data[:6])
     pkt_type = (w0 >> 12) & 1
-    if not pkt_type:  # must be command (type=1)
-        return False, 0, b""
-    pkt_apid = w0 & 0x7FF
-    # Accept packets addressed to this satellite's APID or broadcast (0x7FF)
+    if not pkt_type:  # must be TC (type=1)
+        return False, 0, 0, b""
+    pkt_apid  = w0 & 0x7FF
+    seq_count = w1 & 0x3FFF
     if pkt_apid != (APID & 0x7FF) and pkt_apid != 0x7FF:
-        return False, 0, b""
-    sec_byte0 = data[6]
-    stored_ck = data[7]
-    user_data = data[8:]
-    if ccsds_checksum(sec_byte0, user_data) != stored_ck:
-        return False, 0, b""
-    func_code = (sec_byte0 >> 1) & 0x7F
-    return True, func_code, user_data
+        return False, 0, 0, b""
+    pus_ver_ack = data[6]
+    svc_type    = data[7]
+    svc_subtype = data[8]
+    source_id   = struct.unpack(">H", data[9:11])[0]
+    func_code   = data[11]
+    checksum    = data[12]
+    user_data   = data[13:]
+    # Checksum: XOR of secondary header bytes + func_code, all XOR 0xFF
+    ck = 0xFF
+    for b in (pus_ver_ack, svc_type, svc_subtype,
+              (source_id >> 8) & 0xFF, source_id & 0xFF, func_code):
+        ck ^= b
+    for b in user_data:
+        ck ^= b
+    if ck != checksum:
+        return False, 0, 0, b""
+    return True, func_code, seq_count, user_data
 
 
 FUNC_NAMES = {
@@ -422,12 +441,12 @@ FUNC_NAMES = {
     0x0C: "MISSION_DOWNLINK_DISABLE",
 }
 
-# ---- Binary CCSDS TM payload format (32 bytes, big-endian) ----
-# I  mission_time_s  H  mode  H  bat_soc_pm  H  bat_mv  h  solar_ma
+# ---- Binary CCSDS TM payload format (36 bytes, big-endian) ----
+# 8s cds_time  H  mode  H  bat_soc_pm  H  bat_mv  h  solar_ma
 # H  cpu_pm  H  mem_pm  h  lat_cdeg  h  lon_cdeg  H  alt_dm
 # h  temp_bat_cdeg  h  temp_xpdr_cdeg  B  flags  B  last_cmd_fc  H  cmd_count
-TLM_FMT  = ">IHHHhHHhhHhhBBH"
-TLM_SIZE = struct.calcsize(TLM_FMT)  # 32 bytes
+TLM_FMT  = ">8sHHHhHHhhHhhBBH"
+TLM_SIZE = struct.calcsize(TLM_FMT)  # 36 bytes
 
 MODE_CODES          = {"NOMINAL": 0, "SAFE": 1, "CAMERA_ON": 2, "DOWNLINK_ACTIVE": 3, "REBOOT": 4}
 MISSION_APID_OFFSET = 0x100  # satellite APID + 0x100 = mission-data TM APID
@@ -611,6 +630,28 @@ def orbital_loop():
                 state["contact_windows"] = windows
 
 
+_tm11_sock  = None
+_tm11_seq   = 0
+_tm11_lock  = threading.Lock()
+
+
+def emit_tm11(tc_apid: int, tc_seq_count: int):
+    """Send PUS TM[1,1] TC Acceptance Success after executing a valid command."""
+    global _tm11_sock, _tm11_seq
+    if _tm11_sock is None:
+        _tm11_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    with _tm11_lock:
+        seq        = _tm11_seq
+        _tm11_seq  = (_tm11_seq + 1) & 0x3FFF
+    payload = build_tm11(tc_apid, tc_seq_count)
+    pkt     = build_ccsds_tm(APID, seq, payload)
+    try:
+        _tm11_sock.sendto(pkt, (TLM_HOST, TLM_PORT))
+        print(f"[{SATELLITE_NAME}] TM[1,1] accepted TC APID=0x{tc_apid:03X} seq=0x{tc_seq_count:04X}")
+    except Exception as exc:
+        print(f"[{SATELLITE_NAME}] TM[1,1] send error: {exc}")
+
+
 def build_ccsds_tm(apid: int, seq_count: int, payload: bytes) -> bytes:
     """Wrap payload in a CCSDS TM Space Packet primary header (6 bytes)."""
     word0 = apid & 0x7FF              # Version=0, Type=0 (TM), SecHdr=0
@@ -619,7 +660,7 @@ def build_ccsds_tm(apid: int, seq_count: int, payload: bytes) -> bytes:
 
 
 def build_tlm_payload() -> bytes:
-    """Pack current satellite state into the 32-byte binary TLM payload."""
+    """Pack current satellite state into the 36-byte binary TLM payload (CDS time + fields)."""
     with state_lock:
         s = dict(state)
     mode_c = MODE_CODES.get(s["mode"], 0)
@@ -634,7 +675,7 @@ def build_tlm_payload() -> bytes:
     cmd_code = next((c for c, n in FUNC_NAMES.items() if n == last), 0)
     clamp    = lambda v, lo, hi: int(max(lo, min(hi, v)))
     return struct.pack(TLM_FMT,
-        int(s["uptime_s"]),
+        cds_now(),
         mode_c,
         clamp(s["battery_soc"]      * 10,      0,     1000),
         clamp(s["battery_v"]        * 1000,    0,    65535),
@@ -685,11 +726,12 @@ def command_loop():
         try:
             data, addr = sock.recvfrom(4096)
             src_ip = addr[0]
-            valid, func_code, user_data = validate_ccsds(data)
+            valid, func_code, seq_count, user_data = validate_ccsds(data)
             if valid:
                 cmd_name = FUNC_NAMES.get(func_code, f"UNKNOWN_0x{func_code:02X}")
-                print(f"[{SATELLITE_NAME}] CMD from {src_ip}: {cmd_name} (0x{func_code:02X})")
+                print(f"[{SATELLITE_NAME}] CMD from {src_ip}: {cmd_name} (0x{func_code:02X}) seq=0x{seq_count:04X}")
                 execute_command(func_code, user_data, src_ip)
+                emit_tm11(APID, seq_count)
             else:
                 print(f"[{SATELLITE_NAME}] Invalid packet from {src_ip}: {data.hex()[:32]}")
         except Exception as e:
