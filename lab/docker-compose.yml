@@ -298,6 +298,8 @@ services:
     volumes:
       - ./services/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
     networks:
       spacelab-admin:
         ipv4_address: 192.168.63.40

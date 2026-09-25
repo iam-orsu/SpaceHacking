@@ -150,7 +150,7 @@ def main():
     parser.add_argument("--value",    help="Value to inject for --param")
     parser.add_argument("--count",    type=int, default=1,   help="Number of packets to send (default: 1)")
     parser.add_argument("--interval", type=float, default=1.0, help="Seconds between packets (default: 1.0)")
-    parser.add_argument("--mode",     default="NOMINAL",    help="Satellite mode override (NOMINAL|SAFE|CAMERA_ON|...)")
+    parser.add_argument("--mode",     default=None,         help="Satellite mode override (NOMINAL|SAFE|CAMERA_ON|...)")
     parser.add_argument("--battery",  type=float,           help="Battery SOC percent override (0-100)")
     parser.add_argument("--lat",      type=float,           help="Latitude override")
     parser.add_argument("--lon",      type=float,           help="Longitude override")

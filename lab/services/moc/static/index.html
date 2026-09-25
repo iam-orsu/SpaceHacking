@@ -1242,7 +1242,7 @@ try { wsToken = sessionStorage.getItem('moc_token') || ''; } catch {}
 // ------------------------------------------------------------------ WS
 function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const host  = location.hostname;
+  const host  = location.hostname || 'localhost';
   const port  = 8765;
   // token checked only at connect time, not per-message
   const url = wsToken ? `${proto}://${host}:${port}?token=${wsToken}` : `${proto}://${host}:${port}`;
@@ -1284,8 +1284,8 @@ async function doHttpLogin() {
   const errEl = document.getElementById('ovlErr');
   if (!u || !p) { errEl.textContent = 'Username and password required'; return; }
   try {
-    const proto = location.protocol;
-    const host  = location.hostname;
+    const proto = location.protocol === 'https:' ? 'https:' : 'http:';
+    const host  = location.hostname || 'localhost';
     const resp  = await fetch(`${proto}//${host}:8080/api/login`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -1711,11 +1711,10 @@ function showLogin()   { showPage('commands'); }
 
 // ------------------------------------------------------------------ Boot
 window.addEventListener('load', () => {
-  if (!wsToken) {
-    showLoginOverlay();
-  } else {
-    connectWS();
-  }
+  // MC-MOC-1: TLM is readable without auth, so always connect. A stored token
+  // is sent when present (enables commands); otherwise we connect anonymously
+  // and the dashboard shows live telemetry with no login required.
+  connectWS();
   setInterval(updateClocks, 1000);
   updateClocks();
   requestAnimationFrame(drawOrbit);

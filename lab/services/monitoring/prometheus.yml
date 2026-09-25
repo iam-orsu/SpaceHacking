@@ -3,16 +3,18 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'primary-moc'
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
     static_configs:
-      - targets: ['primary-moc:5000']
+      - targets: ['localhost:9090']
+
+  # MOC HTTP health endpoint (no /metrics - connection refused is expected)
+  - job_name: 'moc'
+    static_configs:
+      - targets: ['moc:8080']
     metrics_path: '/metrics'
 
-  - job_name: 'backup-moc'
-    static_configs:
-      - targets: ['backup-moc:5000']
-    metrics_path: '/metrics'
-
+  # Satellites expose no Prometheus metrics - targets show as down (expected)
   - job_name: 'satellite-1'
     static_configs:
       - targets: ['satellite-1:8080']
@@ -28,14 +30,16 @@ scrape_configs:
       - targets: ['satellite-3:8080']
     metrics_path: '/metrics'
 
+  # Ground stations expose no Prometheus metrics - targets show as down (expected)
   - job_name: 'ground-station-1'
     static_configs:
-      - targets: ['ground-station-1:9001']
+      - targets: ['ground-station-1:4820']
 
   - job_name: 'ground-station-2'
     static_configs:
-      - targets: ['ground-station-2:9001']
+      - targets: ['ground-station-2:4820']
 
+  # Incident-response service (no metrics endpoint - expected)
   - job_name: 'incident-response'
     static_configs:
-      - targets: ['incident-response:9090']
+      - targets: ['incident-response:8080']
