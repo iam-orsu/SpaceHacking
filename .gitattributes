@@ -1,0 +1,36 @@
+# Force LF line endings for all text files.
+# This prevents Windows Git from converting LF to CRLF,
+# which breaks shebang lines in shell scripts on Linux/WSL.
+
+* text=auto eol=lf
+
+# Shell scripts must always be LF
+*.sh text eol=lf
+
+# Python scripts must always be LF
+*.py text eol=lf
+
+# Markdown and config files
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.env text eol=lf
+*.env.example text eol=lf
+*.txt text eol=lf
+*.sql text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+
+# HTML/CSS/JS
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+
+# Binary files - no line ending conversion
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
