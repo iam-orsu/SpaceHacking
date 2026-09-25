@@ -3,812 +3,1152 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OrsuSpace MOC</title>
+<title>OrsuSpace Mission Operations Center</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --nasa-blue:   #0b3d91;
-  --nasa-red:    #fc3d21;
-  --bg:          #ffffff;
-  --surface:     #f5f7fa;
-  --border:      #dde3ed;
-  --text:        #1a1a2e;
-  --text-muted:  #667085;
-  --nominal:     #12b76a;
-  --warning:     #f79009;
-  --critical:    #f04438;
-  --info:        #0b3d91;
-  --sidebar-w:   220px;
+  --nasa-blue:    #0b3d91;
+  --nasa-blue-lt: #1a5ec4;
+  --nasa-red:     #fc3d21;
+  --bg:           #f4f6f9;
+  --surface:      #ffffff;
+  --surface-2:    #f0f2f5;
+  --border:       #dde3ed;
+  --text:         #0d1117;
+  --text-2:       #3d4a5c;
+  --text-muted:   #6b7a90;
+  --nominal:      #0d7a45;
+  --nominal-bg:   #e6f5ee;
+  --warning:      #b45309;
+  --warning-bg:   #fef3c7;
+  --critical:     #c0392b;
+  --critical-bg:  #fde8e8;
+  --safe:         #1e40af;
+  --safe-bg:      #dbeafe;
+  --sidebar-w:    240px;
+  --header-h:     56px;
+  --radius:       8px;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
-  font-size: 14px;
-  display: flex;
-  flex-direction: column;
+  font-size: 13.5px;
+  line-height: 1.5;
   height: 100vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Header */
+/* ------------------------------------------------------------------ Header */
 header {
+  height: var(--header-h);
   background: var(--nasa-blue);
-  color: #fff;
-  height: 52px;
   display: flex;
   align-items: center;
   padding: 0 20px;
   gap: 16px;
   flex-shrink: 0;
-  z-index: 100;
+  user-select: none;
 }
-header .logo-mark {
-  font-weight: 700;
-  font-size: 18px;
-  letter-spacing: 0.5px;
+.moc-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
 }
-header .logo-sub {
-  font-size: 11px;
-  font-weight: 300;
-  opacity: 0.75;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-.ws-badge {
+.moc-title .agency  { font-size: 10px; font-weight: 600; color: rgba(255,255,255,.65); letter-spacing: .12em; text-transform: uppercase; }
+.moc-title .mission { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: .04em; }
+.header-right {
   margin-left: auto;
   display: flex;
   align-items: center;
+  gap: 20px;
+}
+.met-block {
+  text-align: right;
+}
+.met-block .label { font-size: 9px; color: rgba(255,255,255,.55); letter-spacing: .1em; text-transform: uppercase; }
+.met-block .value { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 600; color: #fff; letter-spacing: .04em; }
+.ws-indicator {
+  display: flex;
+  align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 11px;
+  color: rgba(255,255,255,.7);
 }
 .ws-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
-  background: #6c757d;
-  transition: background .3s;
+  background: #5a6a80;
+  transition: background .4s;
 }
-.ws-dot.connected { background: var(--nominal); }
-.ws-dot.error     { background: var(--critical); }
+.ws-dot.live   { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,.6); }
+.ws-dot.error  { background: var(--nasa-red); }
 
-/* Layout */
-.body-wrap {
+/* ------------------------------------------------------------------ Layout */
+.layout {
   display: flex;
   flex: 1;
   overflow: hidden;
 }
 
-/* Sidebar */
+/* ------------------------------------------------------------------ Sidebar */
 nav {
   width: var(--sidebar-w);
   background: var(--surface);
   border-right: 1px solid var(--border);
-  padding: 12px 0;
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  flex-shrink: 0;
   overflow-y: auto;
+  padding: 12px 0;
 }
-nav a {
+.nav-section {
+  padding: 6px 16px 2px;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 18px;
-  text-decoration: none;
-  color: var(--text-muted);
+  padding: 8px 16px;
+  color: var(--text-2);
+  cursor: pointer;
   font-size: 13px;
   font-weight: 500;
   border-left: 3px solid transparent;
   transition: all .15s;
+  user-select: none;
 }
-nav a:hover { background: #eaeff8; color: var(--nasa-blue); }
-nav a.active {
-  background: #dde8f7;
-  color: var(--nasa-blue);
-  border-left-color: var(--nasa-blue);
-}
-.nav-icon { font-size: 16px; }
-nav .nav-section {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--text-muted);
-  padding: 12px 18px 4px;
-}
+.nav-item:hover  { background: var(--bg); color: var(--nasa-blue); }
+.nav-item.active { border-left-color: var(--nasa-blue); background: #eef2fb; color: var(--nasa-blue); font-weight: 600; }
+.nav-item .icon  { font-size: 16px; width: 20px; text-align: center; }
+.nav-divider { height: 1px; background: var(--border); margin: 8px 0; }
 
-/* Main */
+/* Satellite status pills in sidebar */
+.sat-pills { padding: 4px 16px 8px; display: flex; flex-direction: column; gap: 4px; }
+.sat-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-size: 12px; font-weight: 500; color: var(--text-2);
+  cursor: pointer;
+  transition: background .15s;
+}
+.sat-pill:hover { background: var(--surface-2); }
+.sat-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
+.sat-pill .dot.nominal  { background: var(--nominal); }
+.sat-pill .dot.warning  { background: #f59e0b; }
+.sat-pill .dot.critical { background: var(--critical); }
+.sat-pill .dot.safe     { background: var(--safe); }
+.sat-pill .mode-tag { margin-left: auto; font-size: 9px; font-weight: 600; color: var(--text-muted); letter-spacing: .04em; }
+
+/* ------------------------------------------------------------------ Main */
 main {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 20px;
 }
 
-/* Cards */
-.card {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.card-header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 10px 16px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
+.page { display: none; }
+.page.active { display: block; }
+
+/* Page header */
+.page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-.card-body { padding: 16px; }
-
-/* Grid */
-.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-.mb-16 { margin-bottom: 16px; }
-.mb-20 { margin-bottom: 20px; }
-
-/* Page title */
-.page-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: var(--nasa-blue);
-}
-.page-sub {
-  font-size: 12px;
-  color: var(--text-muted);
   margin-bottom: 20px;
 }
-
-/* Satellite card */
-.sat-card { padding: 16px; }
-.sat-name {
-  font-size: 15px;
+.page-header h1 { font-size: 18px; font-weight: 700; color: var(--text); }
+.page-header .sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  font-size: 12.5px;
   font-weight: 600;
-  margin-bottom: 4px;
+  font-family: inherit;
+  transition: all .15s;
 }
-.sat-mode {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
-  background: #e3f8ef;
-  color: #027a48;
+.btn-primary  { background: var(--nasa-blue); color: #fff; }
+.btn-primary:hover { background: var(--nasa-blue-lt); }
+.btn-ghost    { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--nasa-blue); color: var(--nasa-blue); }
+.btn-danger   { background: var(--critical); color: #fff; }
+
+/* ------------------------------------------------------------------ Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.card-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.stat-row { display: flex; gap: 12px; margin-bottom: 20px; }
+.stat {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.stat .label { font-size: 10.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.stat .value { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; color: var(--nasa-blue); line-height: 1; }
+.stat .unit  { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+/* ------------------------------------------------------------------ Satellite cards */
+.sat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.sat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.sat-card-header {
+  background: var(--nasa-blue);
+  color: #fff;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sat-card-header .name { font-size: 14px; font-weight: 700; flex: 1; }
+.sat-card-header .apid { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,.6); }
+.mode-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.mode-NOMINAL  { background: var(--nominal-bg); color: var(--nominal); }
+.mode-SAFE     { background: var(--safe-bg); color: var(--safe); }
+.mode-CAMERA_ON { background: #f0fdf4; color: #166534; }
+.mode-DOWNLINK_ACTIVE { background: var(--warning-bg); color: var(--warning); }
+.mode-REBOOT   { background: var(--critical-bg); color: var(--critical); }
+
+.sat-body { padding: 14px 16px; }
+.tlm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
   margin-bottom: 12px;
 }
-.sat-mode.safe { background: #fef3c7; color: #92400e; }
-.sat-mode.critical { background: #fee2e2; color: #991b1b; }
-.kv-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
-.kv { display: flex; flex-direction: column; }
-.kv-key { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
-.kv-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; }
-.flag-row { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+.tlm-cell { text-align: center; }
+.tlm-cell .tv { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: var(--text); }
+.tlm-cell .tl { font-size: 9.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 1px; }
+
+.bar-row { margin-bottom: 10px; }
+.bar-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-2); margin-bottom: 4px; }
+.bar-track { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+.bar-fill  { height: 100%; border-radius: 3px; background: var(--nominal); transition: width .5s; }
+.bar-fill.warning  { background: #f59e0b; }
+.bar-fill.critical { background: var(--critical); }
+
+.flag-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
 .flag {
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 4px;
   font-size: 10px;
   font-weight: 600;
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--text-muted);
-  border: 1px solid var(--border);
 }
-.flag.on { background: #dde8f7; color: var(--nasa-blue); border-color: #93b5e9; }
-.flag.eclipse { background: #1a1a2e; color: #93b5e9; }
+.flag.on { background: var(--nominal-bg); color: var(--nominal); }
+.flag.warn { background: var(--warning-bg); color: var(--warning); }
 
-/* Table */
-.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.data-table th {
-  padding: 8px 12px;
-  text-align: left;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
-.data-table td {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border);
+.sat-footer {
+  border-top: 1px solid var(--border);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-}
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: var(--surface); }
-
-/* Status badge */
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
   font-size: 11px;
-  font-weight: 600;
+  color: var(--text-muted);
 }
-.badge-nominal  { background: #ecfdf3; color: #027a48; }
-.badge-warning  { background: #fffaeb; color: #b54708; }
-.badge-critical { background: #fef2f2; color: #991b1b; }
-.badge-info     { background: #eff8ff; color: #175cd3; }
-.badge-gray     { background: var(--surface); color: var(--text-muted); }
+.sat-footer .coord { flex: 1; }
+.sat-footer .seq { color: var(--text-2); }
 
-/* Form elements */
-select, input[type=text], input[type=password] {
-  font-family: 'Poppins', sans-serif;
-  font-size: 13px;
-  padding: 7px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text);
-  outline: none;
-  width: 100%;
-}
-select:focus, input:focus { border-color: var(--nasa-blue); }
-.btn {
-  font-family: 'Poppins', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px 18px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.btn-primary { background: var(--nasa-blue); color: #fff; }
-.btn-primary:hover { background: #0a3380; }
-.btn-danger  { background: var(--critical); color: #fff; }
-.form-row { display: grid; gap: 10px; margin-bottom: 12px; }
-.form-label { font-size: 12px; font-weight: 500; margin-bottom: 4px; color: var(--text-muted); }
-
-/* Alert box */
-.alert {
-  padding: 12px 16px;
-  border-radius: 6px;
-  border: 1px solid;
-  font-size: 13px;
-  margin-bottom: 16px;
-}
-.alert-info    { background: #eff8ff; border-color: #b2ccff; color: #175cd3; }
-.alert-warning { background: #fffaeb; border-color: #fec84b; color: #92400e; }
-.alert-critical{ background: #fff1f3; border-color: #fda4af; color: #9f1239; }
-
-/* Mission data panel */
-#mission-panel {
+/* ------------------------------------------------------------------ Mission data alert */
+.mission-alert {
   display: none;
+  background: #fffbeb;
+  border: 2px solid #f59e0b;
+  border-radius: var(--radius);
+  padding: 16px 20px;
   margin-bottom: 20px;
 }
-.mission-entry {
-  background: #fff8e1;
-  border: 1px solid #f6c90e;
-  border-radius: 8px;
-  padding: 14px 16px;
-  margin-bottom: 10px;
+.mission-alert.visible { display: block; }
+.mission-alert-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
 }
-.mission-entry .sat-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #92400e;
-  margin-bottom: 8px;
+.mission-alert-header .icon { font-size: 18px; }
+.mission-alert-header .title { font-size: 13px; font-weight: 700; color: #92400e; }
+.mission-alert-header .badge {
+  padding: 2px 8px; border-radius: 4px;
+  background: #dc2626; color: #fff;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em;
 }
-.mission-entry pre {
-  font-family: 'JetBrains Mono', monospace;
+.mission-data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.mission-field { background: #fff; border-radius: 6px; padding: 8px 12px; border: 1px solid #fbbf24; }
+.mission-field .key  { font-size: 9.5px; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+.mission-field .val  { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); word-break: break-all; }
+
+/* ------------------------------------------------------------------ Table */
+.data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.data-table th { text-align: left; padding: 8px 12px; font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); background: var(--bg); }
+.data-table td { padding: 9px 12px; border-bottom: 1px solid var(--bg); }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--bg); }
+
+/* Severity badges */
+.sev { padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.sev-CRITICAL { background: var(--critical-bg); color: var(--critical); }
+.sev-HIGH     { background: #fee2e2; color: #b91c1c; }
+.sev-MEDIUM   { background: var(--warning-bg); color: var(--warning); }
+.sev-LOW      { background: #f0f9ff; color: #0369a1; }
+
+/* Status badges */
+.status-badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.status-EXECUTED { background: var(--nominal-bg); color: var(--nominal); }
+.status-PENDING  { background: var(--warning-bg); color: var(--warning); }
+.status-REJECTED { background: var(--critical-bg); color: var(--critical); }
+.status-QUEUED   { background: var(--safe-bg); color: var(--safe); }
+
+/* ------------------------------------------------------------------ Command form */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.form-field { display: flex; flex-direction: column; gap: 5px; }
+.form-field label { font-size: 11px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .06em; }
+.form-field input, .form-field select, .form-field textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+  transition: border-color .15s;
+}
+.form-field input:focus, .form-field select:focus { border-color: var(--nasa-blue); }
+
+/* ------------------------------------------------------------------ Login overlay */
+.login-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.4);
+  align-items: center;
+  justify-content: center;
+}
+.login-overlay.visible { display: flex; }
+.login-box {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 32px;
+  width: 360px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+.login-box h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; color: var(--nasa-blue); }
+.login-box .sub { font-size: 12px; color: var(--text-muted); margin-bottom: 24px; }
+.login-box .form-field { margin-bottom: 14px; }
+.login-msg { margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--critical); min-height: 16px; }
+
+/* ------------------------------------------------------------------ Network topology */
+.net-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.net-segment {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.net-seg-header {
+  padding: 10px 16px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 700;
+  border-bottom: 1px solid var(--border);
+}
+.net-seg-header .cidr { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 400; color: var(--text-muted); margin-left: auto; }
+.net-host { display: flex; align-items: center; padding: 8px 16px; gap: 10px; border-bottom: 1px solid var(--bg); font-size: 12px; }
+.net-host:last-child { border-bottom: none; }
+.net-host .hname { font-weight: 600; flex: 1; }
+.net-host .haddr { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.net-host .htag  { font-size: 10px; padding: 1px 6px; border-radius: 3px; background: var(--nominal-bg); color: var(--nominal); font-weight: 600; }
+.net-host .htag.attack { background: #fee2e2; color: #b91c1c; }
+
+.misc-table { width: 100%; font-size: 12.5px; border-collapse: collapse; }
+.misc-table th { background: var(--bg); padding: 8px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); border-bottom: 1px solid var(--border); text-align: left; }
+.misc-table td { padding: 9px 12px; border-bottom: 1px solid var(--bg); vertical-align: top; }
+.misc-table tr:last-child td { border-bottom: none; }
+.mc-id { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--critical); }
+
+/* ------------------------------------------------------------------ Orbit display */
+.orbit-canvas {
+  background: #0d1117;
+  border-radius: var(--radius);
+  width: 100%;
+  aspect-ratio: 2/1;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+}
+#orbitCanvas { width: 100%; height: 100%; }
+
+/* ------------------------------------------------------------------ Alert bar */
+.alert-bar {
+  background: var(--critical-bg);
+  border-left: 3px solid var(--critical);
+  padding: 8px 16px;
+  border-radius: 0 var(--radius) var(--radius) 0;
   font-size: 12px;
-  white-space: pre-wrap;
-  word-break: break-all;
+  font-weight: 600;
+  color: var(--critical);
+  margin-bottom: 12px;
+  display: none;
+}
+.alert-bar.visible { display: block; }
+
+/* ------------------------------------------------------------------ Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c1c9d4; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a0aab8; }
+
+/* ------------------------------------------------------------------ Responsive */
+@media (max-width: 900px) {
+  nav { width: 56px; }
+  .nav-item .label { display: none; }
+  .nav-section { display: none; }
+  .sat-pills { display: none; }
+  main { padding: 14px; }
 }
 </style>
 </head>
 <body>
 
+<!-- ---------------------------------------------------------- Header -->
 <header>
-  <div>
-    <div class="logo-mark">OrsuSpace MOC</div>
-    <div class="logo-sub">Mission Operations Center</div>
+  <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+    <circle cx="18" cy="18" r="17" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    <circle cx="18" cy="18" r="10" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.5)" stroke-width="1.2"/>
+    <path d="M18 8 A10 10 0 0 1 28 18" stroke="#fc3d21" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <circle cx="18" cy="18" r="2.5" fill="#fff"/>
+    <circle cx="28" cy="18" r="2" fill="#fc3d21"/>
+  </svg>
+  <div class="moc-title">
+    <span class="agency">OrsuSpace Operations</span>
+    <span class="mission">Mission Operations Center</span>
   </div>
-  <div class="ws-badge">
-    <div class="ws-dot" id="ws-dot"></div>
-    <span id="ws-status">Connecting...</span>
+  <div class="header-right">
+    <div class="met-block">
+      <div class="label">Mission Elapsed Time</div>
+      <div class="value" id="met">T+000:00:00:00</div>
+    </div>
+    <div class="met-block">
+      <div class="label">UTC</div>
+      <div class="value" id="utcClock">00:00:00</div>
+    </div>
+    <div class="ws-indicator">
+      <div class="ws-dot" id="wsDot"></div>
+      <span id="wsStatus">CONNECTING</span>
+    </div>
   </div>
 </header>
 
-<div class="body-wrap">
-<nav id="sidebar">
-  <div class="nav-section">Flight Ops</div>
-  <a href="#" class="active" data-page="dashboard" onclick="showPage('dashboard')">
-    <span class="nav-icon">&#9678;</span> Dashboard
-  </a>
-  <a href="#" data-page="telemetry" onclick="showPage('telemetry')">
-    <span class="nav-icon">&#128225;</span> Telemetry
-  </a>
-  <a href="#" data-page="commands" onclick="showPage('commands')">
-    <span class="nav-icon">&#9654;</span> Commands
-  </a>
-  <div class="nav-section">Security</div>
-  <a href="#" data-page="network" onclick="showPage('network')">
-    <span class="nav-icon">&#128279;</span> Network
-  </a>
-  <a href="#" data-page="incidents" onclick="showPage('incidents')">
-    <span class="nav-icon">&#9888;</span> Incidents
-  </a>
-</nav>
+<!-- ---------------------------------------------------------- Body -->
+<div class="layout">
 
-<main>
+  <!-- Sidebar -->
+  <nav>
+    <div class="nav-section">Navigation</div>
+    <div class="nav-item active" data-page="dashboard"><span class="icon">&#9734;</span><span class="label">Dashboard</span></div>
+    <div class="nav-item" data-page="telemetry"><span class="icon">&#128268;</span><span class="label">Telemetry</span></div>
+    <div class="nav-item" data-page="commands"><span class="icon">&#128326;</span><span class="label">Commands</span></div>
+    <div class="nav-item" data-page="network"><span class="icon">&#127760;</span><span class="label">Network</span></div>
+    <div class="nav-item" data-page="incidents"><span class="icon">&#9888;</span><span class="label">Incidents</span></div>
 
-<!-- DASHBOARD PAGE -->
-<div id="page-dashboard">
-  <div class="page-title">Constellation Dashboard</div>
-  <div class="page-sub">Real-time telemetry from SpaceVE-1 constellation (read-only, no auth required)</div>
+    <div class="nav-divider"></div>
+    <div class="nav-section">Satellites</div>
+    <div class="sat-pills" id="satPills"></div>
+  </nav>
 
-  <div id="mission-panel">
-    <div class="alert alert-critical">
-      <strong>DOWNLINK ENABLED</strong> — CONFIDENTIAL mission data is being received in cleartext from satellite CCSDS TM stream. Unauthenticated clients on the network can read this data.
+  <!-- Main content -->
+  <main>
+
+    <!-- ---- Dashboard ---- -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <h1>Mission Dashboard</h1>
+          <div class="sub">SpaceVE-1 Constellation &bull; 3 satellites operational</div>
+        </div>
+        <button class="btn btn-ghost" onclick="refreshDash()">&#8635; Refresh</button>
+      </div>
+
+      <!-- Fleet summary stats -->
+      <div class="stat-row" id="fleetStats">
+        <div class="stat"><div class="label">Satellites Active</div><div class="value" id="st-active">—</div><div class="unit">of 3 total</div></div>
+        <div class="stat"><div class="label">Avg Battery SOC</div><div class="value" id="st-batt">—</div><div class="unit">percent</div></div>
+        <div class="stat"><div class="label">Packets Received</div><div class="value" id="st-pkts">—</div><div class="unit">this session</div></div>
+        <div class="stat"><div class="label">Open Incidents</div><div class="value" id="st-inc" style="color:var(--critical)">—</div><div class="unit">requiring attention</div></div>
+      </div>
+
+      <!-- Mission data exfil alert -->
+      <div class="mission-alert" id="missionAlert">
+        <div class="mission-alert-header">
+          <span class="icon">&#9888;</span>
+          <span class="title">CONFIDENTIAL DATA RECEIVED VIA DOWNLINK</span>
+          <span class="badge">CONFIDENTIAL</span>
+        </div>
+        <div class="mission-data-grid" id="missionDataGrid"></div>
+      </div>
+
+      <!-- Satellite cards -->
+      <div class="sat-grid" id="satGrid"></div>
+
+      <!-- Orbit visualization -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Orbital Track</div>
+          <div style="font-size:11px;color:var(--text-muted)">Ground track — current epoch</div>
+        </div>
+        <div class="orbit-canvas"><canvas id="orbitCanvas"></canvas></div>
+      </div>
     </div>
-    <div id="mission-entries"></div>
-  </div>
 
-  <div class="grid-3 mb-16" id="sat-cards">
-    <div class="card">
-      <div class="card-header">SpaceVE-1A</div>
-      <div class="sat-card" id="sat-SpaceVE-1A"><span style="color:var(--text-muted);font-size:12px;">Waiting for telemetry...</span></div>
-    </div>
-    <div class="card">
-      <div class="card-header">SpaceVE-1B</div>
-      <div class="sat-card" id="sat-SpaceVE-1B"><span style="color:var(--text-muted);font-size:12px;">Waiting for telemetry...</span></div>
-    </div>
-    <div class="card">
-      <div class="card-header">SpaceVE-1C</div>
-      <div class="sat-card" id="sat-SpaceVE-1C"><span style="color:var(--text-muted);font-size:12px;">Waiting for telemetry...</span></div>
-    </div>
-  </div>
+    <!-- ---- Telemetry ---- -->
+    <div class="page" id="page-telemetry">
+      <div class="page-header">
+        <div><h1>Telemetry Stream</h1><div class="sub">Live binary CCSDS TM packets</div></div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><div class="card-title">Latest CCSDS Packets</div><div style="font-size:11px;color:var(--text-muted)">Auto-scrolling &bull; newest first</div></div>
+        <div id="tlmStream" style="max-height:420px;overflow-y:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th><th>Satellite</th><th>APID</th><th>Seq</th><th>Mode</th>
+                <th>Bat %</th><th>CPU %</th><th>Lat</th><th>Lon</th><th>Alt km</th>
+              </tr>
+            </thead>
+            <tbody id="tlmTbody"></tbody>
+          </table>
+        </div>
+      </div>
 
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-header">Recent Commands</div>
-      <div style="overflow-x:auto;">
-        <table class="data-table" id="cmd-feed">
-          <thead><tr><th>Time</th><th>Satellite</th><th>Function</th><th>Status</th></tr></thead>
-          <tbody id="cmd-feed-body"><tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:16px;">No commands yet</td></tr></tbody>
+      <!-- Hex dump section -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">Raw CCSDS Hex</div><div style="font-size:11px;color:var(--text-muted)" id="hexSatLabel"></div></div>
+        <div id="hexDump" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-2);padding:4px 0;line-height:1.9;"></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:12px">
+          Use for replay: <span style="font-family:'JetBrains Mono';color:var(--critical)">CMD SpaceVE-1A &lt;hex&gt;</span> via GS-BETA port 4820
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- Commands ---- -->
+    <div class="page" id="page-commands">
+      <div class="page-header">
+        <div><h1>Command Console</h1><div class="sub">Uplink telecommands via Mission Operations</div></div>
+      </div>
+
+      <!-- Auth status -->
+      <div id="cmdAuthBanner" class="alert-bar visible">
+        Operator authentication required to submit commands. <a href="#" onclick="showLogin();return false;" style="color:var(--critical);text-decoration:underline;">Login</a>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <!-- Submit form -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">Submit Command</div></div>
+          <div class="form-field" style="margin-bottom:12px">
+            <label>Satellite</label>
+            <select id="cmdSat">
+              <option value="SpaceVE-1A">SpaceVE-1A (APID 0x200)</option>
+              <option value="SpaceVE-1B">SpaceVE-1B (APID 0x201)</option>
+              <option value="SpaceVE-1C">SpaceVE-1C (APID 0x202)</option>
+            </select>
+          </div>
+          <div class="form-field" style="margin-bottom:12px">
+            <label>Function</label>
+            <select id="cmdFunc">
+              <option value="NOP">NOP — No Operation (Level 1)</option>
+              <option value="CAMERA_ON">CAMERA_ON — Enable payload camera (Level 2)</option>
+              <option value="CAMERA_OFF">CAMERA_OFF — Disable payload camera (Level 2)</option>
+              <option value="DOWNLINK_ENABLE">DOWNLINK_ENABLE — Transmit mission data (Level 2)</option>
+              <option value="DOWNLINK_DISABLE">DOWNLINK_DISABLE — Stop mission data TX (Level 2)</option>
+              <option value="SAFING_MODE">SAFING_MODE — Enter safe hold (Level 3)</option>
+              <option value="REBOOT">REBOOT — Restart OBC (Level 3)</option>
+              <option value="MEMORY_DUMP">MEMORY_DUMP — Exfiltrate memory (Level 2)</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="submitCommand()" style="width:100%">Uplink Command</button>
+          <div id="cmdResult" style="margin-top:12px;font-size:12px;color:var(--text-muted);min-height:18px;"></div>
+        </div>
+
+        <!-- Login box inline -->
+        <div class="card" id="loginCard">
+          <div class="card-header"><div class="card-title">Operator Authentication</div></div>
+          <div class="form-field" style="margin-bottom:12px">
+            <label>Username</label>
+            <input type="text" id="cmdUsername" placeholder="e.g. command.ops" autocomplete="off">
+          </div>
+          <div class="form-field" style="margin-bottom:12px">
+            <label>Password</label>
+            <input type="password" id="cmdPassword" placeholder="ops123">
+          </div>
+          <button class="btn btn-primary" onclick="doLogin()" style="width:100%">Authenticate</button>
+          <div id="loginMsg" style="margin-top:10px;font-size:12px;font-weight:600;color:var(--critical);min-height:16px;"></div>
+          <div style="margin-top:12px;font-size:11px;color:var(--text-muted)">Hint: password is stored as MD5. Default: ops123</div>
+        </div>
+      </div>
+
+      <!-- Command history table -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><div class="card-title">Recent Commands</div><div style="font-size:11px;color:var(--text-muted)" id="cmdHistCount"></div></div>
+        <table class="data-table">
+          <thead><tr><th>Time</th><th>Satellite</th><th>Function</th><th>Func Code</th><th>Level</th><th>Status</th><th>Submitted By</th></tr></thead>
+          <tbody id="cmdTbody"></tbody>
         </table>
       </div>
     </div>
-    <div class="card">
-      <div class="card-header">Connection Info</div>
-      <div class="card-body">
-        <table class="data-table">
+
+    <!-- ---- Network ---- -->
+    <div class="page" id="page-network">
+      <div class="page-header">
+        <div><h1>Network Topology</h1><div class="sub">SpaceVE-1 lab network segments and services</div></div>
+      </div>
+
+      <div class="net-grid" style="margin-bottom:20px">
+        <div class="net-segment">
+          <div class="net-seg-header" style="background:#fff7ed;color:#9a3412">Command Network<span class="cidr">192.168.61.0/24</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">MOC (Primary)</span><span class="haddr">192.168.61.10</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">GS-ALPHA</span><span class="haddr">192.168.61.20</span><span class="htag">AUTH</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span><span class="hname">GS-BETA</span><span class="haddr">192.168.61.21:4820</span><span class="htag attack">EXPOSED</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">SpaceVE-1A</span><span class="haddr">192.168.61.100</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">SpaceVE-1B</span><span class="haddr">192.168.61.101</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">SpaceVE-1C</span><span class="haddr">192.168.61.102</span></div>
+        </div>
+        <div class="net-segment">
+          <div class="net-seg-header" style="background:#eff6ff;color:#1e40af">Telemetry Network<span class="cidr">192.168.62.0/24</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">MOC TLM Receiver</span><span class="haddr">192.168.62.10:5000/udp</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">SpaceVE-1A</span><span class="haddr">192.168.62.100</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">SpaceVE-1B</span><span class="haddr">192.168.62.101</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">SpaceVE-1C</span><span class="haddr">192.168.62.102</span></div>
+        </div>
+        <div class="net-segment">
+          <div class="net-seg-header" style="background:#f0fdf4;color:#166534">Admin Network<span class="cidr">192.168.63.0/24</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">MOC (Admin)</span><span class="haddr">192.168.63.10</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">Grafana</span><span class="haddr">192.168.63.30:3000</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">Telemetry DB</span><span class="haddr">192.168.63.40:5432</span></div>
+        </div>
+        <div class="net-segment">
+          <div class="net-seg-header" style="background:#fdf2f8;color:#7c3aed">MOC Services<span class="cidr">Exposed Ports</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--nominal);flex-shrink:0"></span><span class="hname">Dashboard (HTTP)</span><span class="haddr">:8080</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span><span class="hname">WebSocket TLM</span><span class="haddr">:8765 (no auth)</span><span class="htag attack">MC-MOC-1</span></div>
+          <div class="net-host"><span class="dot" style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span><span class="hname">GS-BETA TCP</span><span class="haddr">:4820 (maint mode)</span><span class="htag attack">MC-GS-3</span></div>
+        </div>
+      </div>
+
+      <!-- Misconfigurations table -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">Intentional Misconfigurations</div><div style="font-size:11px;color:var(--critical);font-weight:600">For training purposes only</div></div>
+        <table class="misc-table">
+          <thead><tr><th>ID</th><th>Component</th><th>Description</th><th>Impact</th></tr></thead>
           <tbody>
-            <tr><td>MOC WebSocket</td><td id="info-ws">--</td></tr>
-            <tr><td>Auth Status</td><td id="info-auth">Not logged in</td></tr>
-            <tr><td>Satellites tracked</td><td id="info-sats">0</td></tr>
-            <tr><td>Packets received</td><td id="info-pkts">0</td></tr>
+            <tr><td><span class="mc-id">MC-GS-1</span></td><td>GS-BETA</td><td>Default password "password123"</td><td>Credential brute force</td></tr>
+            <tr><td><span class="mc-id">MC-GS-2</span></td><td>All GS</td><td>No source IP filtering on TCP port 4820</td><td>Command injection from any host</td></tr>
+            <tr><td><span class="mc-id">MC-GS-3</span></td><td>GS-BETA</td><td>MAINTENANCE_MODE=true — auth bypassed</td><td>Unauthenticated command uplink</td></tr>
+            <tr><td><span class="mc-id">MC-GS-4</span></td><td>All GS</td><td>CMD &lt;sat&gt; &lt;hex&gt; relay without CCSDS validation</td><td>Arbitrary packet injection</td></tr>
+            <tr><td><span class="mc-id">MC-GS-5</span></td><td>All GS</td><td>Replay window = full 14-bit sequence range (0x3FFF)</td><td>CCSDS packet replay attack</td></tr>
+            <tr><td><span class="mc-id">MC-MOC-1</span></td><td>MOC WS</td><td>WebSocket TLM stream readable without auth</td><td>Passive intelligence gathering</td></tr>
+            <tr><td><span class="mc-id">MC-MOC-2</span></td><td>MOC DB</td><td>Passwords stored as MD5 (no bcrypt/Argon2)</td><td>Offline cracking after DB dump</td></tr>
+            <tr><td><span class="mc-id">MC-SAT-1</span></td><td>Satellites</td><td>No source IP verification on CMD port 1234</td><td>Direct satellite compromise</td></tr>
+            <tr><td><span class="mc-id">MC-SAT-2</span></td><td>Satellites</td><td>Mission plan transmitted in cleartext JSON (CCSDS payload)</td><td>Mission data exfiltration</td></tr>
+            <tr><td><span class="mc-id">MC-GRF-1</span></td><td>Grafana</td><td>Default credentials admin/admin</td><td>Monitoring system compromise</td></tr>
           </tbody>
         </table>
-        <div class="alert alert-info" style="margin-top:12px;">
-          Telemetry stream is open to any WebSocket client. No authentication required to read CCSDS data (MC-MOC-1).
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- TELEMETRY PAGE -->
-<div id="page-telemetry" style="display:none;">
-  <div class="page-title">Telemetry Detail</div>
-  <div class="page-sub">Full parameter breakdown per satellite</div>
-  <div style="margin-bottom:14px;">
-    <select id="tlm-sat-select" style="width:200px;" onchange="renderTlmDetail()">
-      <option value="SpaceVE-1A">SpaceVE-1A</option>
-      <option value="SpaceVE-1B">SpaceVE-1B</option>
-      <option value="SpaceVE-1C">SpaceVE-1C</option>
-    </select>
-  </div>
-  <div class="grid-3 mb-16" id="tlm-detail-grid"></div>
-  <div class="card">
-    <div class="card-header">Raw CCSDS TM Values</div>
-    <div class="card-body">
-      <pre id="tlm-raw" style="font-family:'JetBrains Mono',monospace;font-size:12px;white-space:pre-wrap;word-break:break-all;color:var(--text-muted);">No data</pre>
-    </div>
-  </div>
-</div>
-
-<!-- COMMANDS PAGE -->
-<div id="page-commands" style="display:none;">
-  <div class="page-title">Command Operations</div>
-  <div class="page-sub">Authentication required to submit commands</div>
-
-  <div class="grid-2 mb-20">
-    <div class="card">
-      <div class="card-header">Operator Login</div>
-      <div class="card-body">
-        <div id="login-form">
-          <div class="form-row">
-            <div>
-              <div class="form-label">Username</div>
-              <input type="text" id="cmd-user" placeholder="command.ops">
-            </div>
-            <div>
-              <div class="form-label">Password</div>
-              <input type="password" id="cmd-pass" placeholder="">
-            </div>
-          </div>
-          <button class="btn btn-primary" onclick="doLogin()">Login</button>
-          <div id="login-msg" style="margin-top:8px;font-size:12px;color:var(--critical);"></div>
-        </div>
-        <div id="logged-in-info" style="display:none;">
-          <div class="alert alert-info">
-            Logged in as <strong id="logged-user"></strong> (<span id="logged-role"></span>)
-          </div>
-          <button class="btn" style="background:var(--surface);color:var(--text-muted);margin-top:8px;" onclick="doLogout()">Logout</button>
-        </div>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-header">Submit Command</div>
-      <div class="card-body">
-        <div class="form-row">
-          <div>
-            <div class="form-label">Satellite</div>
-            <select id="cmd-sat">
-              <option>SpaceVE-1A</option>
-              <option>SpaceVE-1B</option>
-              <option>SpaceVE-1C</option>
-            </select>
-          </div>
-          <div>
-            <div class="form-label">Function</div>
-            <select id="cmd-func">
-              <option>NOP</option>
-              <option>CAMERA_ON</option>
-              <option>CAMERA_OFF</option>
-              <option>DOWNLINK_ENABLE</option>
-              <option>DOWNLINK_DISABLE</option>
-              <option>MEMORY_DUMP</option>
-              <option>REBOOT</option>
-              <option>SAFING_MODE</option>
-              <option>NOMINAL_MODE</option>
-              <option>PAYLOAD_POWER_OFF</option>
-            </select>
-          </div>
-        </div>
-        <button class="btn btn-primary" onclick="submitCmd()">Uplink Command</button>
-        <div id="cmd-result" style="margin-top:10px;font-size:12px;font-family:'JetBrains Mono',monospace;"></div>
+    <!-- ---- Incidents ---- -->
+    <div class="page" id="page-incidents">
+      <div class="page-header">
+        <div><h1>Incident Response</h1><div class="sub">Alerts from the Intrusion Detection System &bull; 10-minute detection lag simulated</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Active Incidents</div><div id="incidentCount" style="font-size:11px;color:var(--text-muted)"></div></div>
+        <table class="data-table">
+          <thead><tr><th>Detected</th><th>Severity</th><th>Type</th><th>Description</th><th>Source IP</th><th>Satellite</th><th>Status</th></tr></thead>
+          <tbody id="incidentTbody"></tbody>
+        </table>
       </div>
     </div>
-  </div>
 
-  <div class="card">
-    <div class="card-header">Command History</div>
-    <div style="overflow-x:auto;">
-      <table class="data-table">
-        <thead><tr><th>ID</th><th>Satellite</th><th>Function</th><th>Level</th><th>Status</th><th>Operator</th></tr></thead>
-        <tbody id="cmd-history-body"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:16px;">No commands yet</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- NETWORK PAGE -->
-<div id="page-network" style="display:none;">
-  <div class="page-title">Network Topology</div>
-  <div class="page-sub">Three-network architecture: command, telemetry, admin</div>
-
-  <div class="alert alert-warning mb-16">
-    This page shows the intentional network topology for training. Each misconfiguration is a training target, not a CVE.
-  </div>
-
-  <div class="card mb-16">
-    <div class="card-header">Network Segments</div>
-    <div style="overflow-x:auto;">
-      <table class="data-table">
-        <thead><tr><th>Network</th><th>Subnet</th><th>Purpose</th></tr></thead>
-        <tbody>
-          <tr><td>spacelab-cmd</td><td>192.168.61.0/24</td><td>Command uplink (MOC to Ground Stations to Satellites)</td></tr>
-          <tr><td>spacelab-tlm</td><td>192.168.62.0/24</td><td>Telemetry downlink (Satellites to MOC)</td></tr>
-          <tr><td>spacelab-admin</td><td>192.168.63.0/24</td><td>Monitoring (Prometheus, Grafana)</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="card mb-16">
-    <div class="card-header">Services and IP Assignments</div>
-    <div style="overflow-x:auto;">
-      <table class="data-table">
-        <thead><tr><th>Service</th><th>IP(s)</th><th>Port</th><th>Protocol</th></tr></thead>
-        <tbody>
-          <tr><td>MOC (this)</td><td>192.168.61.10 / .62.10 / .63.10</td><td>8765 WS, 8080 HTTP, 5000 UDP</td><td>asyncio</td></tr>
-          <tr><td>GS-ALPHA</td><td>192.168.61.20</td><td>4820 TCP</td><td>TCP operator console</td></tr>
-          <tr><td>GS-BETA</td><td>192.168.61.21</td><td>4820 TCP</td><td>TCP — MAINTENANCE MODE</td></tr>
-          <tr><td>SpaceVE-1A</td><td>192.168.61.100 / .62.100</td><td>1234 UDP (cmd), TLM→MOC</td><td>CCSDS</td></tr>
-          <tr><td>SpaceVE-1B</td><td>192.168.61.101 / .62.101</td><td>1234 UDP (cmd), TLM→MOC</td><td>CCSDS</td></tr>
-          <tr><td>SpaceVE-1C</td><td>192.168.61.102 / .62.102</td><td>1234 UDP (cmd), TLM→MOC</td><td>CCSDS</td></tr>
-          <tr><td>Telemetry DB</td><td>192.168.62.20 / .63.20</td><td>5432 TCP</td><td>PostgreSQL</td></tr>
-          <tr><td>Grafana</td><td>192.168.63.40</td><td>3000 TCP</td><td>HTTP — default creds</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">Training Misconfigurations</div>
-    <div style="overflow-x:auto;">
-      <table class="data-table">
-        <thead><tr><th>ID</th><th>Service</th><th>Description</th><th>Impact</th></tr></thead>
-        <tbody>
-          <tr><td>MC-GS-3</td><td>GS-BETA</td><td>MAINTENANCE_MODE=true — no auth required</td><td>Command injection</td></tr>
-          <tr><td>MC-MOC-1</td><td>MOC WS</td><td>Telemetry stream unauthenticated</td><td>Data read without login</td></tr>
-          <tr><td>MC-GS-5</td><td>GS-ALPHA/BETA</td><td>Sequence counter replay window: full 14-bit range</td><td>CCSDS replay attack</td></tr>
-          <tr><td>MC-MOC-2</td><td>MOC DB</td><td>MD5 password hashing</td><td>Offline hash cracking</td></tr>
-          <tr><td>MC-GS-4</td><td>GS CMD</td><td>Raw CCSDS hex accepted with no validation</td><td>Arbitrary packet injection</td></tr>
-          <tr><td>MC-MOC-4</td><td>MOC DB</td><td>SQL injection in telemetry search</td><td>DB read</td></tr>
-          <tr><td>MC-SAT-1</td><td>Satellite</td><td>No source IP check on command UDP port</td><td>Command from any host</td></tr>
-          <tr><td>MC-GRF-1</td><td>Grafana</td><td>Default credentials admin/admin</td><td>Metric read access</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- INCIDENTS PAGE -->
-<div id="page-incidents" style="display:none;">
-  <div class="page-title">Incident Response</div>
-  <div class="page-sub">IDS alerts with 10-minute detection lag (simulates real-world batch analysis)</div>
-
-  <div class="alert alert-info mb-16">
-    The incident detection system polls the command log every 60 seconds and flags anomalies with a 600-second lag. Attackers completing a full kill chain have a 10-minute window before this panel shows anything.
-  </div>
-
-  <div class="card">
-    <div class="card-header">Active Incidents <span id="inc-count" class="badge badge-gray" style="margin-left:8px;">0</span></div>
-    <div style="overflow-x:auto;">
-      <table class="data-table">
-        <thead><tr><th>Severity</th><th>Type</th><th>Satellite</th><th>Description</th><th>Detected</th><th>Status</th></tr></thead>
-        <tbody id="incidents-body"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:16px;">No incidents detected</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-</main>
+  </main>
 </div>
 
 <script>
-const WS_URL = `ws://${location.hostname}:8765`;
+// ------------------------------------------------------------------ State
+const SAT_IDS = ['SpaceVE-1A','SpaceVE-1B','SpaceVE-1C'];
+const state = {
+  sats: {},
+  pkts: 0,
+  incidents: [],
+  cmds: [],
+  missionData: {},
+  authToken: null,
+  loggedIn: false,
+  metStart: Date.now(),
+};
 let ws = null;
-let satData = {};
-let missionData = {};
-let cmdHistory = [];
-let incidents   = [];
-let pktsRx  = 0;
-let session = null;
+let lastHex = {};
 
-function connect() {
-  ws = new WebSocket(WS_URL);
+// ------------------------------------------------------------------ WS
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const host  = location.hostname;
+  const port  = 8765;
+  ws = new WebSocket(`${proto}://${host}:${port}`);
+
   ws.onopen = () => {
-    setWsDot('connected', 'Connected');
-    document.getElementById('info-ws').textContent = WS_URL;
-    ws.send(JSON.stringify({type:'list_cmds'}));
+    setWsDot('live', 'LIVE');
+    // subscribe passively — no auth needed (MC-MOC-1)
   };
-  ws.onmessage = e => {
-    try { handleMsg(JSON.parse(e.data)); } catch(_) {}
+  ws.onmessage = (e) => {
+    try { handleMsg(JSON.parse(e.data)); } catch {}
   };
   ws.onclose = () => {
-    setWsDot('', 'Disconnected — reconnecting');
-    setTimeout(connect, 3000);
+    setWsDot('error', 'DISCONNECTED');
+    setTimeout(connectWS, 4000);
   };
-  ws.onerror = () => setWsDot('error', 'Error');
+  ws.onerror = () => setWsDot('error', 'ERROR');
 }
 
-function setWsDot(cls, label) {
-  const d = document.getElementById('ws-dot');
-  d.className = 'ws-dot' + (cls ? ' ' + cls : '');
-  document.getElementById('ws-status').textContent = label;
+function setWsDot(cls, text) {
+  const d = document.getElementById('wsDot');
+  d.className = 'ws-dot ' + cls;
+  document.getElementById('wsStatus').textContent = text;
 }
 
+// ------------------------------------------------------------------ Message handler
 function handleMsg(msg) {
-  pktsRx++;
-  document.getElementById('info-pkts').textContent = pktsRx;
-
-  if (msg.type === 'tlm_update') {
-    satData[msg.satellite_id] = msg;
-    document.getElementById('info-sats').textContent = Object.keys(satData).length;
-    renderSatCard(msg.satellite_id);
-    if (document.getElementById('page-telemetry').style.display !== 'none') {
-      const sel = document.getElementById('tlm-sat-select').value;
-      if (sel === msg.satellite_id) renderTlmDetail();
-    }
-  }
-  else if (msg.type === 'mission_data') {
-    missionData[msg.satellite_id] = msg;
-    renderMissionPanel();
-  }
-  else if (msg.type === 'login_ok') {
-    session = {username: msg.username, role: msg.role, clearance: msg.clearance};
-    document.getElementById('login-form').style.display = 'none';
-    document.getElementById('logged-in-info').style.display = 'block';
-    document.getElementById('logged-user').textContent = msg.username;
-    document.getElementById('logged-role').textContent = msg.role;
-    document.getElementById('info-auth').textContent = msg.username + ' (' + msg.role + ')';
-  }
-  else if (msg.type === 'login_fail') {
-    document.getElementById('login-msg').textContent = 'Login failed: ' + (msg.error || 'invalid credentials');
-  }
-  else if (msg.type === 'cmd_queued' || msg.type === 'cmd_result') {
-    cmdHistory.unshift(msg);
-    if (cmdHistory.length > 50) cmdHistory.length = 50;
-    renderCmdHistory();
-    renderCmdFeed();
-    if (msg.type === 'cmd_result') {
-      const el = document.getElementById('cmd-result');
-      el.style.color = msg.status === 'EXECUTED' ? 'var(--nominal)' : 'var(--critical)';
-      el.textContent = msg.status + ': ' + msg.func_name + ' -> ' + msg.satellite_id;
-    }
-  }
-  else if (msg.type === 'error') {
-    const el = document.getElementById('cmd-result');
-    el.style.color = 'var(--critical)';
-    el.textContent = 'Error: ' + msg.msg;
+  switch (msg.type) {
+    case 'tlm_update':
+      state.pkts++;
+      state.sats[msg.satellite_id] = msg;
+      renderSatCard(msg.satellite_id);
+      updateSatPill(msg.satellite_id, msg);
+      appendTlmRow(msg);
+      if (msg.ccsds_hex) {
+        lastHex[msg.satellite_id] = msg.ccsds_hex;
+        updateHexDump(msg.satellite_id, msg.ccsds_hex);
+      }
+      updateFleetStats();
+      break;
+    case 'mission_data':
+      state.missionData[msg.satellite_id] = msg.payload;
+      renderMissionAlert();
+      break;
+    case 'login_ok':
+      state.loggedIn = true;
+      state.authToken = msg.token;
+      document.getElementById('cmdAuthBanner').classList.remove('visible');
+      document.getElementById('loginMsg').style.color = 'var(--nominal)';
+      document.getElementById('loginMsg').textContent = 'Authenticated as ' + msg.username;
+      break;
+    case 'login_fail':
+      document.getElementById('loginMsg').textContent = msg.message || 'Authentication failed';
+      break;
+    case 'cmd_queued':
+    case 'cmd_result':
+      document.getElementById('cmdResult').textContent =
+        (msg.type === 'cmd_queued' ? 'Queued: ' : 'Executed: ') + (msg.message || JSON.stringify(msg));
+      break;
+    case 'recent_commands':
+      state.cmds = msg.commands || [];
+      renderCmdTable();
+      break;
+    case 'recent_incidents':
+      state.incidents = msg.incidents || [];
+      renderIncidentTable();
+      updateFleetStats();
+      break;
+    case 'error':
+      document.getElementById('cmdResult').textContent = 'Error: ' + msg.message;
+      break;
   }
 }
 
+// ------------------------------------------------------------------ Satellite cards
 function renderSatCard(satId) {
-  const t = satData[satId];
-  if (!t) return;
-  const el = document.getElementById('sat-' + satId);
-  if (!el) return;
-  const modeClass = t.mode === 'SAFE' ? 'safe' : (t.mode === 'REBOOT' ? 'critical' : '');
-  const bat = (t.battery_soc_pct || 0);
-  const batColor = bat < 20 ? 'var(--critical)' : bat < 40 ? 'var(--warning)' : 'var(--nominal)';
-  el.innerHTML = `
-    <div class="sat-name">${satId}</div>
-    <span class="sat-mode ${modeClass}">${t.mode || 'UNKNOWN'}</span>
-    <div class="kv-list">
-      <div class="kv"><span class="kv-key">Battery</span><span class="kv-val" style="color:${batColor}">${bat.toFixed(1)}%</span></div>
-      <div class="kv"><span class="kv-key">Voltage</span><span class="kv-val">${(t.battery_v||0).toFixed(2)} V</span></div>
-      <div class="kv"><span class="kv-key">Lat</span><span class="kv-val">${(t.lat||0).toFixed(2)}</span></div>
-      <div class="kv"><span class="kv-key">Lon</span><span class="kv-val">${(t.lon||0).toFixed(2)}</span></div>
-      <div class="kv"><span class="kv-key">Alt</span><span class="kv-val">${(t.alt_km||0).toFixed(1)} km</span></div>
-      <div class="kv"><span class="kv-key">CPU</span><span class="kv-val">${(t.cpu_pct||0).toFixed(1)}%</span></div>
+  const d = state.sats[satId];
+  if (!d) return;
+  const grid = document.getElementById('satGrid');
+  let card = document.getElementById('sc-' + satId);
+  if (!card) {
+    card = document.createElement('div');
+    card.className = 'sat-card';
+    card.id = 'sc-' + satId;
+    grid.appendChild(card);
+  }
+
+  const batt = d.battery_soc_pct ?? 0;
+  const cpu  = d.cpu_pct ?? 0;
+  const battClass = batt < 20 ? 'critical' : batt < 40 ? 'warning' : '';
+  const cpuClass  = cpu  > 80 ? 'critical' : cpu  > 60 ? 'warning' : '';
+  const mode = d.mode || 'UNKNOWN';
+  const flags = [
+    d.eclipse          ? {label:'ECLIPSE', on:false}    : null,
+    d.camera_on        ? {label:'CAM ON',  on:true}     : null,
+    d.downlink_enabled ? {label:'DOWNLINK',on:true,warn:true} : null,
+    d.memory_dump      ? {label:'MEM DUMP',on:true,warn:true} : null,
+  ].filter(Boolean);
+
+  card.innerHTML = `
+    <div class="sat-card-header">
+      <span class="name">${satId}</span>
+      <span class="apid">APID 0x${(d.apid||0).toString(16).toUpperCase().padStart(3,'0')}</span>
+      <span class="mode-badge mode-${mode}">${mode}</span>
     </div>
-    <div class="flag-row">
-      ${t.eclipse ? '<span class="flag eclipse">ECLIPSE</span>' : '<span class="flag">SUNLIT</span>'}
-      ${t.camera_on ? '<span class="flag on">CAM ON</span>' : '<span class="flag">CAM OFF</span>'}
-      ${t.downlink_enabled ? '<span class="flag on" style="background:#fee2e2;color:#991b1b;border-color:#fca5a5;">DOWNLINK</span>' : '<span class="flag">DL OFF</span>'}
-      ${t.memory_dump ? '<span class="flag on" style="background:#fef3c7;color:#92400e;">MEMDUMP</span>' : ''}
+    <div class="sat-body">
+      <div class="tlm-grid">
+        <div class="tlm-cell"><div class="tv">${(d.lat??0).toFixed(2)}&deg;</div><div class="tl">Latitude</div></div>
+        <div class="tlm-cell"><div class="tv">${(d.lon??0).toFixed(2)}&deg;</div><div class="tl">Longitude</div></div>
+        <div class="tlm-cell"><div class="tv">${(d.alt_km??0).toFixed(0)}</div><div class="tl">Alt km</div></div>
+        <div class="tlm-cell"><div class="tv">${(d.temp_battery_c??0).toFixed(1)}&deg;</div><div class="tl">Bat Temp C</div></div>
+        <div class="tlm-cell"><div class="tv">${(d.battery_v??0).toFixed(2)}</div><div class="tl">Bat V</div></div>
+        <div class="tlm-cell"><div class="tv">${(d.solar_a??0).toFixed(2)}</div><div class="tl">Solar A</div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label"><span>Battery SOC</span><span>${batt.toFixed(1)}%</span></div>
+        <div class="bar-track"><div class="bar-fill ${battClass}" style="width:${Math.min(100,batt)}%"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label"><span>CPU Load</span><span>${cpu.toFixed(1)}%</span></div>
+        <div class="bar-track"><div class="bar-fill ${cpuClass}" style="width:${Math.min(100,cpu)}%"></div></div>
+      </div>
+      <div class="flag-row">
+        ${flags.map(f => `<span class="flag ${f.on?(f.warn?'warn':'on'):''}">${f.label}</span>`).join('')}
+      </div>
+    </div>
+    <div class="sat-footer">
+      <span class="coord">&#128205; ${(d.lat??0).toFixed(4)}, ${(d.lon??0).toFixed(4)}</span>
+      <span class="seq">SEQ ${d.seq_count ?? '—'}</span>
     </div>`;
 }
 
-function renderMissionPanel() {
-  const panel = document.getElementById('mission-panel');
-  const entries = document.getElementById('mission-entries');
-  if (Object.keys(missionData).length === 0) {
-    panel.style.display = 'none';
-    return;
+// ------------------------------------------------------------------ Mission alert
+function renderMissionAlert() {
+  const alert = document.getElementById('missionAlert');
+  const grid  = document.getElementById('missionDataGrid');
+  if (Object.keys(state.missionData).length === 0) { alert.classList.remove('visible'); return; }
+  alert.classList.add('visible');
+  grid.innerHTML = '';
+  for (const [sat, data] of Object.entries(state.missionData)) {
+    const entries = typeof data === 'object' ? Object.entries(data) : [['raw', JSON.stringify(data)]];
+    const satHeader = document.createElement('div');
+    satHeader.style.cssText = 'grid-column:1/-1;font-size:11px;font-weight:700;color:#92400e;padding:4px 0 2px;border-bottom:1px solid #fbbf24;margin-bottom:4px';
+    satHeader.textContent = sat + ' — Mission Plan';
+    grid.appendChild(satHeader);
+    for (const [k, v] of entries) {
+      const f = document.createElement('div');
+      f.className = 'mission-field';
+      f.innerHTML = `<div class="key">${k}</div><div class="val">${JSON.stringify(v)}</div>`;
+      grid.appendChild(f);
+    }
   }
-  panel.style.display = 'block';
-  entries.innerHTML = Object.entries(missionData).map(([sid, d]) => `
-    <div class="mission-entry">
-      <div class="sat-label">&#9888; CONFIDENTIAL MISSION DATA — ${sid}</div>
-      <pre>${JSON.stringify(d, null, 2)}</pre>
-    </div>`).join('');
 }
 
-function renderTlmDetail() {
-  const satId = document.getElementById('tlm-sat-select').value;
-  const t = satData[satId];
-  const grid = document.getElementById('tlm-detail-grid');
-  const raw  = document.getElementById('tlm-raw');
-  if (!t) {
-    grid.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">No data for ' + satId + '</div>';
-    raw.textContent = 'No data';
-    return;
+// ------------------------------------------------------------------ Sat pills
+function updateSatPill(satId, d) {
+  const pills = document.getElementById('satPills');
+  let pill = document.getElementById('pill-' + satId);
+  if (!pill) {
+    pill = document.createElement('div');
+    pill.className = 'sat-pill';
+    pill.id = 'pill-' + satId;
+    pill.onclick = () => { showPage('dashboard'); document.getElementById('sc-' + satId)?.scrollIntoView({behavior:'smooth'}); };
+    pills.appendChild(pill);
   }
-  const sections = [
-    {title:'Power', keys:[['battery_soc_pct','%'],['battery_v','V'],['solar_a','A']]},
-    {title:'Position', keys:[['lat','deg'],['lon','deg'],['alt_km','km']]},
-    {title:'Health', keys:[['cpu_pct','%'],['mem_pct','%'],['cmd_count','cmds']]},
-  ];
-  grid.innerHTML = sections.map(s => `
-    <div class="card">
-      <div class="card-header">${s.title}</div>
-      <div class="card-body">
-        <div class="kv-list">
-          ${s.keys.map(([k,u]) => `
-            <div class="kv">
-              <span class="kv-key">${k}</span>
-              <span class="kv-val">${t[k] !== undefined ? t[k] : '--'} ${u}</span>
-            </div>`).join('')}
-        </div>
-      </div>
-    </div>`).join('');
-  raw.textContent = JSON.stringify(t, null, 2);
+  const mode = d.mode || 'UNKNOWN';
+  const dotCls = mode === 'NOMINAL' ? 'nominal' : mode === 'SAFE' ? 'safe' : mode === 'REBOOT' ? 'critical' : 'warning';
+  pill.innerHTML = `<span class="dot ${dotCls}"></span><span>${satId.replace('SpaceVE-','VE-')}</span><span class="mode-tag">${mode}</span>`;
 }
 
-function renderCmdFeed() {
-  const tbody = document.getElementById('cmd-feed-body');
-  if (!cmdHistory.length) return;
-  tbody.innerHTML = cmdHistory.slice(0,10).map(c => {
-    const status = c.status || 'QUEUED';
-    const cls = status === 'EXECUTED' ? 'badge-nominal' : status === 'FAILED' ? 'badge-critical' : 'badge-info';
-    return `<tr>
-      <td>${new Date().toLocaleTimeString()}</td>
-      <td>${c.satellite_id||'--'}</td>
-      <td>${c.func_name||'--'}</td>
-      <td><span class="badge ${cls}">${status}</span></td>
-    </tr>`;
-  }).join('');
+// ------------------------------------------------------------------ Telemetry table
+const tlmRows = [];
+function appendTlmRow(d) {
+  const tbody = document.getElementById('tlmTbody');
+  const ts    = new Date().toISOString().slice(11,23);
+  const tr    = document.createElement('tr');
+  tr.innerHTML = `
+    <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${ts}</td>
+    <td style="font-weight:600">${d.satellite_id}</td>
+    <td style="font-family:'JetBrains Mono',monospace">0x${(d.apid||0).toString(16).toUpperCase()}</td>
+    <td style="font-family:'JetBrains Mono',monospace">${d.seq_count??'—'}</td>
+    <td><span class="mode-badge mode-${d.mode||'UNKNOWN'}">${d.mode||'?'}</span></td>
+    <td>${(d.battery_soc_pct??0).toFixed(1)}</td>
+    <td>${(d.cpu_pct??0).toFixed(1)}</td>
+    <td>${(d.lat??0).toFixed(2)}</td>
+    <td>${(d.lon??0).toFixed(2)}</td>
+    <td>${(d.alt_km??0).toFixed(0)}</td>`;
+  tbody.insertBefore(tr, tbody.firstChild);
+  if (tbody.children.length > 100) tbody.removeChild(tbody.lastChild);
 }
 
-function renderCmdHistory() {
-  const tbody = document.getElementById('cmd-history-body');
-  if (!cmdHistory.length) return;
-  tbody.innerHTML = cmdHistory.map(c => {
-    const status = c.status || 'QUEUED';
-    const cls = status === 'EXECUTED' ? 'badge-nominal' : status === 'FAILED' ? 'badge-critical' : 'badge-info';
-    return `<tr>
-      <td>${c.cmd_id||'--'}</td>
-      <td>${c.satellite_id||'--'}</td>
-      <td>${c.func_name||'--'}</td>
-      <td>${c.level||'--'}</td>
-      <td><span class="badge ${cls}">${status}</span></td>
-      <td>${session ? session.username : '--'}</td>
-    </tr>`;
-  }).join('');
+// ------------------------------------------------------------------ Hex dump
+function updateHexDump(satId, hex) {
+  const el    = document.getElementById('hexDump');
+  const label = document.getElementById('hexSatLabel');
+  label.textContent = satId + ' — latest packet';
+  const clean = hex.replace(/\s/g,'');
+  const rows  = [];
+  for (let i = 0; i < clean.length; i += 32) {
+    const chunk = clean.slice(i, i+32);
+    const hex16 = chunk.match(/.{1,2}/g).join(' ');
+    const addr  = (i/2).toString(16).padStart(4,'0').toUpperCase();
+    rows.push(`<span style="color:var(--text-muted)">${addr}</span>  ${hex16}`);
+  }
+  el.innerHTML = rows.join('<br>');
+}
+
+// ------------------------------------------------------------------ Fleet stats
+function updateFleetStats() {
+  const sats = Object.values(state.sats);
+  document.getElementById('st-active').textContent = sats.length;
+  if (sats.length) {
+    const avg = sats.reduce((s,d) => s + (d.battery_soc_pct??0), 0) / sats.length;
+    document.getElementById('st-batt').textContent = avg.toFixed(1);
+  }
+  document.getElementById('st-pkts').textContent = state.pkts;
+  const open = state.incidents.filter(i => i.status === 'OPEN' || !i.status).length;
+  document.getElementById('st-inc').textContent = open;
+}
+
+// ------------------------------------------------------------------ Commands
+function submitCommand() {
+  if (!ws || ws.readyState !== 1) { document.getElementById('cmdResult').textContent = 'WebSocket not connected'; return; }
+  const sat  = document.getElementById('cmdSat').value;
+  const func = document.getElementById('cmdFunc').value;
+  const msg  = {type: 'submit_cmd', satellite_id: sat, func_name: func};
+  if (state.loggedIn && state.authToken) msg.token = state.authToken;
+  ws.send(JSON.stringify(msg));
+  document.getElementById('cmdResult').textContent = 'Sent ' + func + ' to ' + sat;
 }
 
 function doLogin() {
-  const u = document.getElementById('cmd-user').value.trim();
-  const p = document.getElementById('cmd-pass').value;
-  if (!u) return;
-  document.getElementById('login-msg').textContent = '';
+  if (!ws || ws.readyState !== 1) { document.getElementById('loginMsg').textContent = 'WebSocket not connected'; return; }
+  const u = document.getElementById('cmdUsername').value.trim();
+  const p = document.getElementById('cmdPassword').value;
+  if (!u || !p) { document.getElementById('loginMsg').textContent = 'Username and password required'; return; }
   ws.send(JSON.stringify({type:'login', username:u, password:p}));
+  ws.send(JSON.stringify({type:'list_cmds'}));
 }
 
-function doLogout() {
-  session = null;
-  document.getElementById('login-form').style.display = 'block';
-  document.getElementById('logged-in-info').style.display = 'none';
-  document.getElementById('info-auth').textContent = 'Not logged in';
-  document.getElementById('cmd-user').value = '';
-  document.getElementById('cmd-pass').value = '';
+function renderCmdTable() {
+  const tbody = document.getElementById('cmdTbody');
+  document.getElementById('cmdHistCount').textContent = state.cmds.length + ' commands';
+  tbody.innerHTML = state.cmds.map(c => `
+    <tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${formatTime(c.submitted_at)}</td>
+      <td style="font-weight:600">${c.satellite_id}</td>
+      <td>${c.func_name || '—'}</td>
+      <td style="font-family:'JetBrains Mono',monospace">0x${(c.func_code||0).toString(16).padStart(2,'0').toUpperCase()}</td>
+      <td>${c.level}</td>
+      <td><span class="status-badge status-${c.status}">${c.status}</span></td>
+      <td>${c.submitted_by}</td>
+    </tr>`).join('');
 }
 
-function submitCmd() {
-  if (!session) {
-    const el = document.getElementById('cmd-result');
-    el.style.color = 'var(--critical)';
-    el.textContent = 'You must log in first.';
-    return;
+// ------------------------------------------------------------------ Incidents
+function renderIncidentTable() {
+  const tbody = document.getElementById('incidentTbody');
+  const count = document.getElementById('incidentCount');
+  count.textContent = state.incidents.length + ' incidents';
+  tbody.innerHTML = state.incidents.map(i => `
+    <tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${formatTime(i.detected_at)}</td>
+      <td><span class="sev sev-${i.severity}">${i.severity}</span></td>
+      <td>${i.type}</td>
+      <td>${i.description}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${i.source_ip||'—'}</td>
+      <td>${i.satellite_id||'—'}</td>
+      <td><span class="status-badge status-${i.status||'OPEN'}">${i.status||'OPEN'}</span></td>
+    </tr>`).join('');
+}
+
+// ------------------------------------------------------------------ Orbit canvas
+const orbitState = { frame: 0 };
+function drawOrbit() {
+  const canvas = document.getElementById('orbitCanvas');
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,.07)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= W; x += W/12) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y <= H; y += H/6)  { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  // Lat/lon labels
+  ctx.fillStyle = 'rgba(255,255,255,.25)';
+  ctx.font = '9px JetBrains Mono, monospace';
+  for (const lon of [-180,-120,-60,0,60,120,180]) {
+    const x = (lon + 180) / 360 * W;
+    ctx.fillText(lon + '°', x+2, H-4);
   }
-  const sat  = document.getElementById('cmd-sat').value;
-  const func = document.getElementById('cmd-func').value;
-  ws.send(JSON.stringify({type:'submit_cmd', satellite_id:sat, func_name:func}));
+
+  // Earth outline (equator + tropics)
+  ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+  const tropic = 23.5 / 90 * H/2;
+  ctx.strokeStyle = 'rgba(255,255,255,.07)';
+  [H/2 - tropic, H/2 + tropic].forEach(y => { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); });
+
+  const colors = ['#22c55e','#3b82f6','#f59e0b'];
+  SAT_IDS.forEach((satId, i) => {
+    const d = state.sats[satId];
+    if (!d) return;
+
+    // Approximate ground track (inc = orbital inclination)
+    const inc  = [51.6, 51.6, 97.6][i] * Math.PI / 180;
+    const RAAN = [0, 120, 240][i] * Math.PI / 180;
+    const t    = orbitState.frame * 0.005 + i * 2.1;
+
+    const track = [];
+    for (let dt = -0.5; dt <= 0.5; dt += 0.005) {
+      const M = t + dt * Math.PI * 2;
+      const argLat = M + RAAN;
+      const lat = Math.asin(Math.sin(inc) * Math.sin(argLat)) * 180 / Math.PI;
+      const lon = ((argLat * 180/Math.PI - dt * 360) % 360 + 360) % 360 - 180;
+      track.push([lon, lat]);
+    }
+
+    // Draw track
+    ctx.strokeStyle = colors[i] + '60';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    let first = true;
+    let prevLon = null;
+    for (const [lon, lat] of track) {
+      const x = (lon + 180) / 360 * W;
+      const y = (1 - (lat + 90) / 180) * H;
+      if (first || (prevLon !== null && Math.abs(lon - prevLon) > 90)) { ctx.moveTo(x, y); first = false; }
+      else ctx.lineTo(x, y);
+      prevLon = lon;
+    }
+    ctx.stroke();
+
+    // Current position dot
+    const curLat = d.lat ?? track[Math.floor(track.length/2)][1];
+    const curLon = d.lon ?? track[Math.floor(track.length/2)][0];
+    const cx = (curLon + 180) / 360 * W;
+    const cy = (1 - (curLat + 90) / 180) * H;
+
+    ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI*2);
+    ctx.fillStyle = colors[i]; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px Inter, sans-serif';
+    ctx.fillText(satId.replace('SpaceVE-','VE-'), cx + 9, cy + 4);
+  });
+
+  orbitState.frame++;
+  requestAnimationFrame(drawOrbit);
 }
 
-function showPage(page) {
-  ['dashboard','telemetry','commands','network','incidents'].forEach(p => {
-    document.getElementById('page-'+p).style.display = p === page ? '' : 'none';
-  });
-  document.querySelectorAll('nav a').forEach(a => {
-    a.classList.toggle('active', a.dataset.page === page);
-  });
-  if (page === 'telemetry') renderTlmDetail();
-  return false;
+// ------------------------------------------------------------------ MET + UTC
+function updateClocks() {
+  const now = new Date();
+  const elapsed = Math.floor((Date.now() - state.metStart) / 1000);
+  const d = Math.floor(elapsed / 86400);
+  const h = Math.floor((elapsed % 86400) / 3600).toString().padStart(2,'0');
+  const m = Math.floor((elapsed % 3600) / 60).toString().padStart(2,'0');
+  const s = (elapsed % 60).toString().padStart(2,'0');
+  document.getElementById('met').textContent     = `T+${String(d).padStart(3,'0')}:${h}:${m}:${s}`;
+  document.getElementById('utcClock').textContent = now.toISOString().slice(11,19);
 }
 
-connect();
+// ------------------------------------------------------------------ Navigation
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pg = document.getElementById('page-' + name);
+  if (pg) pg.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => { if (n.dataset.page === name) n.classList.add('active'); });
+  if (name === 'dashboard') drawOrbit();
+}
+
+document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+  item.onclick = () => showPage(item.dataset.page);
+});
+
+// ------------------------------------------------------------------ Utils
+function formatTime(ts) {
+  if (!ts) return '—';
+  try { return new Date(ts).toISOString().slice(0,19).replace('T',' '); } catch { return ts; }
+}
+function refreshDash() { if (ws && ws.readyState === 1) ws.send(JSON.stringify({type:'list_cmds'})); }
+function showLogin()   { showPage('commands'); }
+
+// ------------------------------------------------------------------ Boot
+window.addEventListener('load', () => {
+  connectWS();
+  setInterval(updateClocks, 1000);
+  updateClocks();
+  requestAnimationFrame(drawOrbit);
+  // Initialize empty sat pills
+  SAT_IDS.forEach(id => {
+    const pill = document.createElement('div');
+    pill.className = 'sat-pill';
+    pill.id = 'pill-' + id;
+    pill.innerHTML = `<span class="dot"></span><span>${id.replace('SpaceVE-','VE-')}</span><span class="mode-tag">WAITING</span>`;
+    pill.onclick = () => showPage('dashboard');
+    document.getElementById('satPills').appendChild(pill);
+  });
+});
 </script>
 </body>
 </html>

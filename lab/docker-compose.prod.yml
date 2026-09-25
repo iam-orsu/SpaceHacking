@@ -1,0 +1,307 @@
+version: "3.9"
+
+# OrsuSpace Mission Operations Lab — Production Compose
+#
+# Key differences from docker-compose.yml (dev):
+#   - All containers on single flat network (172.20.0.0/24)
+#   - nginx reverse proxy with SSL (port 80 + 443)
+#   - Resource limits on all containers
+#   - File-based logging with rotation
+#   - GS-BETA port 4820 exposed (pentest target)
+#
+# Start via: ./deploy.sh start  (NOT docker compose up directly)
+
+networks:
+  orsuspace-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET:-172.20.0.0/24}
+          gateway: 172.20.0.1
+
+volumes:
+  telemetry-db-data:
+  grafana-data:
+  prometheus-data:
+  letsencrypt:
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+
+  telemetry-db:
+    build: ./services/telemetry-db
+    container_name: spaceve1-tlmdb
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-spaceve1}
+      POSTGRES_USER:     ${DB_USER:-spaceops}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-spaceops2024}
+    volumes:
+      - telemetry-db-data:/var/lib/postgresql/data
+    networks:
+      orsuspace-net:
+        ipv4_address: ${DB_IP:-172.20.0.200}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-spaceops} -d ${DB_NAME:-spaceve1}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+
+  satellite-1:
+    build: ./services/satellite
+    container_name: spaceve1-sat-a
+    restart: unless-stopped
+    environment:
+      SATELLITE_ID:   "A"
+      SATELLITE_NAME: "SpaceVE-1A"
+      SAT_APID:       "0x200"
+      INCLINATION:    "51.6"
+      RAAN:           "0.0"
+      MEAN_ANOMALY:   "0.0"
+      CMD_PORT:       "1234"
+      TLM_HOST:       ${MOC_IP:-172.20.0.10}
+      TLM_PORT:       "5000"
+      TIME_WARP:      ${TIME_WARP:-60}
+    networks:
+      orsuspace-net:
+        ipv4_address: ${SAT_A_IP:-172.20.0.100}
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+
+  satellite-2:
+    build: ./services/satellite
+    container_name: spaceve1-sat-b
+    restart: unless-stopped
+    environment:
+      SATELLITE_ID:   "B"
+      SATELLITE_NAME: "SpaceVE-1B"
+      SAT_APID:       "0x201"
+      INCLINATION:    "51.6"
+      RAAN:           "120.0"
+      MEAN_ANOMALY:   "120.0"
+      CMD_PORT:       "1234"
+      TLM_HOST:       ${MOC_IP:-172.20.0.10}
+      TLM_PORT:       "5000"
+      TIME_WARP:      ${TIME_WARP:-60}
+    networks:
+      orsuspace-net:
+        ipv4_address: ${SAT_B_IP:-172.20.0.101}
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+
+  satellite-3:
+    build: ./services/satellite
+    container_name: spaceve1-sat-c
+    restart: unless-stopped
+    environment:
+      SATELLITE_ID:   "C"
+      SATELLITE_NAME: "SpaceVE-1C"
+      SAT_APID:       "0x202"
+      INCLINATION:    "97.6"
+      RAAN:           "240.0"
+      MEAN_ANOMALY:   "240.0"
+      CMD_PORT:       "1234"
+      TLM_HOST:       ${MOC_IP:-172.20.0.10}
+      TLM_PORT:       "5000"
+      TIME_WARP:      ${TIME_WARP:-60}
+    networks:
+      orsuspace-net:
+        ipv4_address: ${SAT_C_IP:-172.20.0.102}
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+
+  ground-station-1:
+    build: ./services/ground-station
+    container_name: spaceve1-gs1
+    restart: unless-stopped
+    environment:
+      GS_ID:            "GS-ALPHA"
+      GS_LAT:           "28.5"
+      GS_LON:           "-80.5"
+      GS_PASSWORD:      ${GS_ALPHA_TOKEN:-gs_alpha_2024}
+      MAINTENANCE_MODE: "false"
+      LISTEN_PORT:      "4820"
+      SAT_A_IP:         ${SAT_A_IP:-172.20.0.100}
+      SAT_B_IP:         ${SAT_B_IP:-172.20.0.101}
+      SAT_C_IP:         ${SAT_C_IP:-172.20.0.102}
+    networks:
+      orsuspace-net:
+        ipv4_address: ${GS1_IP:-172.20.0.20}
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+          cpus: "0.1"
+
+  ground-station-2:
+    build: ./services/ground-station
+    container_name: spaceve1-gs2
+    restart: unless-stopped
+    environment:
+      GS_ID:            "GS-BETA"
+      GS_LAT:           "51.5"
+      GS_LON:           "-0.1"
+      GS_PASSWORD:      "password123"     # MC-GS-1: weak, guessable
+      MAINTENANCE_MODE: "true"            # MC-GS-3: no auth
+      LISTEN_PORT:      "4820"
+      SAT_A_IP:         ${SAT_A_IP:-172.20.0.100}
+      SAT_B_IP:         ${SAT_B_IP:-172.20.0.101}
+      SAT_C_IP:         ${SAT_C_IP:-172.20.0.102}
+    ports:
+      - "${GS_BETA_PORT:-4820}:4820"     # exposed — primary pentest target
+    networks:
+      orsuspace-net:
+        ipv4_address: ${GS2_IP:-172.20.0.21}
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+          cpus: "0.1"
+
+  moc:
+    build: ./services/moc
+    container_name: spaceve1-moc
+    restart: unless-stopped
+    depends_on:
+      telemetry-db:
+        condition: service_healthy
+    environment:
+      MOC_ID:          "PRIMARY"
+      TLM_LISTEN_PORT: "5000"
+      WS_PORT:         "8765"
+      HTTP_PORT:       "8080"
+      DB_HOST:         ${DB_IP:-172.20.0.200}
+      DB_PORT:         "5432"
+      DB_NAME:         ${DB_NAME:-spaceve1}
+      DB_USER:         ${DB_USER:-spaceops}
+      DB_PASS:         ${DB_PASSWORD:-spaceops2024}
+      GS1_HOST:        ${GS1_IP:-172.20.0.20}
+      GS1_PORT:        "4820"
+      GS1_TOKEN:       ${GS_ALPHA_TOKEN:-gs_alpha_2024}
+      GS2_HOST:        ${GS2_IP:-172.20.0.21}
+      GS2_PORT:        "4820"
+    networks:
+      orsuspace-net:
+        ipv4_address: ${MOC_IP:-172.20.0.10}
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  incident-response:
+    build: ./services/incident-response
+    container_name: spaceve1-irs
+    restart: unless-stopped
+    depends_on:
+      telemetry-db:
+        condition: service_healthy
+    environment:
+      DB_HOST:         ${DB_IP:-172.20.0.200}
+      DB_PORT:         "5432"
+      DB_NAME:         ${DB_NAME:-spaceve1}
+      DB_USER:         ${DB_USER:-spaceops}
+      DB_PASS:         ${DB_PASSWORD:-spaceops2024}
+      DETECTION_LAG_S: "600"
+      POLL_INTERVAL:   "60"
+    networks:
+      orsuspace-net:
+        ipv4_address: 172.20.0.30
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+          cpus: "0.1"
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: spaceve1-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./services/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      orsuspace-net:
+        ipv4_address: 172.20.0.40
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.25"
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: spaceve1-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "admin"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_SERVER_ROOT_URL: "https://${DOMAIN:-localhost}/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./services/monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    networks:
+      orsuspace-net:
+        ipv4_address: 172.20.0.41
+    depends_on:
+      - prometheus
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.25"
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: spaceve1-nginx
+    restart: unless-stopped
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - letsencrypt:/etc/letsencrypt:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - moc
+    networks:
+      orsuspace-net:
+        ipv4_address: 172.20.0.5
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+          cpus: "0.1"
